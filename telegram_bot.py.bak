@@ -1,0 +1,963 @@
+import logging
+import os
+import pandas as pd
+import io
+import matplotlib.pyplot as plt
+import telebot
+from telebot import types
+import numpy as np
+from data_processor import process_exam_data, prepare_excel_for_download, prepare_pdf_for_download
+from utils import display_grade_distribution, GRADE_DESCRIPTIONS, calculate_statistics
+from fill_processor import process_combined_scores_pdf
+from reportlab.lib import colors
+from reportlab.lib.pagesizes import A4, landscape
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.pdfbase import pdfmetrics
+from reportlab.lib.units import cm
+from reportlab.lib.enums import TA_CENTER, TA_LEFT
+
+# Enable logging
+logging.basicConfig(
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    level=logging.INFO
+)
+logger = logging.getLogger(__name__)
+
+# Keep track of user data
+user_data = {}
+
+# Help message
+HELP_MESSAGE = """
+⚙️ Rasch Model Exam Processor Bot 
+
+Bu bot sizga Rasch modeli asosida imtihon natijalarini qayta ishlashga yordam beradi:
+
+/start - Botni ishga tushirish
+/help - Yordam xabarini ko'rsatish
+/fill - Test va esse ballari bo'yicha umumiy baholash
+
+1️⃣ Menga imtihon ma'lumotlarini Excel formatida (.xlsx) yuborishingiz kerak.
+2️⃣ Fayl quyidagi formatda bo'lishi kerak:
+   - Birinchi ustunda talaba ID raqamlari
+   - Qolgan ustunlarda har bir savol bo'yicha javoblar (1 - to'g'ri, 0 - noto'g'ri)
+   - Har bir qator - bir talaba, har bir ustun - bir savol
+❗️ Excel faylni yuboringiz, men uni Rasch modeli yordamida qayta ishlab, natijalarni ko'rsataman.
+
+📝 /fill buyrug'ini ishlatib:
+   1️⃣ Avval PDF faylni yuboring (test ballari)
+   2️⃣ Keyin Excel faylni yuboring (esse ballari)
+   Bot ikkala faylni birlashtirib, umumiy natijalar bilan yangi PDF yaratadi.
+"""
+
+def main():
+    """Start the bot."""
+    # Get the telegram token
+    token = os.environ.get("TELEGRAM_TOKEN")
+    if not token:
+        logger.error("TELEGRAM_TOKEN not found in environment variables.")
+        print("Please set the TELEGRAM_TOKEN environment variable.")
+        return
+    
+    # Create bot instance
+    bot = telebot.TeleBot(token)
+    
+    # Start command handler
+    @bot.message_handler(commands=['start'])
+    def start_command(message):
+        bot.send_message(
+            message.chat.id,
+            f"Salom! Men Rasch model asosida imtihon natijalarini qayta ishlaydigan botman.\n\n"
+            f"Imtihon ma'lumotlarini Excel formatida (.xlsx) yuborishingiz mumkin va men talabalar qobiliyatlarini baholayman "
+            f"va BBM (Bilim va malakalarni baholash agentligi) standartlari bo'yicha A+ dan C gacha baho qo'yaman.\n\n"
+            f"Yordam olish uchun /help buyrug'ini yuboring."
+        )
+    
+    # Help command handler
+    @bot.message_handler(commands=['help'])
+    def help_command(message):
+        bot.send_message(message.chat.id, HELP_MESSAGE)
+        
+    # Fill command handler to process PDF files with test and essay scores
+    @bot.message_handler(commands=['fill'])
+    def fill_command(message):
+        # Set a flag indicating the user is in fill mode (waiting for test PDF file first)
+        user_id = message.from_user.id
+        if user_id not in user_data:
+            user_data[user_id] = {}
+        user_data[user_id]['waiting_for_pdf'] = True
+        user_data[user_id]['has_test_pdf'] = False
+        user_data[user_id]['has_essay_pdf'] = False
+        
+        bot.send_message(
+            message.chat.id,
+            "📝 Test va esse ballari bo'yicha umumiy natijalar tayyorlash uchun quyidagi fayllarni yuboring:\n\n"
+            "1️⃣ Avval TEST natijalari bo'lgan PDF faylini yuboring\n"
+            "   PDF fayl formati: [№] [Ism familiya] [BALL] [FOIZ] [DARAJA]\n\n"
+            "2️⃣ Keyin ESSE natijalari bo'lgan PDF faylini yuboring\n"
+            "   PDF fayl formati: [№] [Ism familiya] [BALL] [FOIZ] [DARAJA]\n\n"
+            "Bot test va esse ballari asosida umumiy natijalar hisoblab, yangi PDF yaratadi.\n"
+            "Har bir o'quvchining test va esse ballari qo'shilib, 2 ga bo'linadi va umumiy ball chiqariladi."
+        )
+    
+    # Helper function to process both PDF files
+    def process_both_files(message, user_id):
+        """
+        Process both test PDF and essay PDF files to generate combined scores PDF.
+        
+        Parameters:
+        - message: The Telegram message object
+        - user_id: The user ID
+        """
+        if user_id not in user_data:
+            return
+            
+        user_info = user_data[user_id]
+        
+        if not user_info.get('has_test_pdf', False) or not user_info.get('has_essay_pdf', False):
+            bot.send_message(
+                message.chat.id,
+                "Ikkala PDF fayl ham kerak: TEST va ESSE natijalari."
+            )
+            return
+        
+        test_pdf_path = user_info.get('test_pdf_path')
+        essay_pdf_path = user_info.get('essay_pdf_path')
+        
+        if not test_pdf_path or not essay_pdf_path:
+            bot.send_message(
+                message.chat.id,
+                "Fayllar saqlanmagan. Iltimos, qaytadan urinib ko'ring."
+            )
+            return
+        
+        bot.send_message(message.chat.id, "Fayllar qayta ishlanmoqda, iltimos kuting...")
+        
+        try:
+            # Process both PDF files to generate combined PDF
+            pdf_data = process_combined_scores_pdf(test_pdf_path, essay_pdf_path)
+            
+            # Send the combined scores PDF
+            bot.send_document(
+                chat_id=message.chat.id,
+                document=pdf_data,
+                visible_file_name="test_esse_natijalar.pdf",
+                caption="📝 Test va esse ballari asosida yaratilgan umumiy natijalar"
+            )
+            
+            # Clean up temporary files
+            if os.path.exists(test_pdf_path):
+                os.remove(test_pdf_path)
+                
+            if os.path.exists(essay_pdf_path):
+                os.remove(essay_pdf_path)
+                
+            # Reset flags
+            user_data[user_id]['waiting_for_pdf'] = False
+            user_data[user_id]['has_test_pdf'] = False
+            user_data[user_id]['has_essay_pdf'] = False
+            user_data[user_id].pop('test_pdf_path', None)
+            user_data[user_id].pop('essay_pdf_path', None)
+            
+            bot.send_message(
+                message.chat.id,
+                "✅ Natijalar muvaffaqiyatli yaratldi! PDF faylda talabalarning test va esse ballari umumlashtirildi."
+            )
+            
+        except Exception as e:
+            logger.error(f"Error processing files: {str(e)}")
+            bot.send_message(
+                message.chat.id,
+                f"Fayllarni qayta ishlashda xatolik yuz berdi: {str(e)}\n\n"
+                f"Iltimos, fayllaringiz to'g'ri formatda ekanligini tekshiring."
+            )
+            
+    # File handler
+    @bot.message_handler(content_types=['document'])
+    def handle_document(message):
+        user_id = message.from_user.id
+        
+        # Get file info
+        file_info = message.document
+        
+        # Check if the user is waiting for a PDF file (after /fill command)
+        if user_id in user_data and user_data[user_id].get('waiting_for_pdf', False):
+            
+            # Handle first PDF file upload (test scores)
+            if file_info.file_name.endswith('.pdf') and not user_data[user_id].get('has_test_pdf', False):
+                bot.send_message(message.chat.id, "TEST PDF fayl yuklab olindi✅️")
+                
+                try:
+                    # Download the file
+                    file_id = file_info.file_id
+                    file_info = bot.get_file(file_id)
+                    downloaded_file = bot.download_file(file_info.file_path)
+                    
+                    # Save file temporarily
+                    temp_test_pdf_path = f"temp_test_pdf_{user_id}.pdf"
+                    with open(temp_test_pdf_path, 'wb') as f:
+                        f.write(downloaded_file)
+                    
+                    # Save the test PDF path for later use
+                    user_data[user_id]['test_pdf_path'] = temp_test_pdf_path
+                    user_data[user_id]['has_test_pdf'] = True
+                    
+                    # If we already have essay PDF, process both files
+                    if user_data[user_id].get('has_essay_pdf', False):
+                        process_both_files(message, user_id)
+                    else:
+                        # Prompt user to upload essay PDF file
+                        bot.send_message(
+                            message.chat.id,
+                            "✅ TEST PDF fayl saqlandi.\n"
+                            "Endi, iltimos, o'quvchilarning ESSE ballari bo'lgan PDF faylini yuboring."
+                        )
+                        
+                except Exception as e:
+                    logger.error(f"Error processing PDF file: {str(e)}")
+                    bot.send_message(
+                        message.chat.id,
+                        f"PDF faylni qayta ishlashda xatolik yuz berdi: {str(e)}\n\n"
+                        f"Iltimos, PDF faylingiz to'g'ri formatda ekanligini tekshiring."
+                    )
+                
+                return
+                
+            # Handle second PDF file upload (essay scores)
+            elif file_info.file_name.endswith('.pdf') and user_data[user_id].get('has_test_pdf', False) and not user_data[user_id].get('has_essay_pdf', False):
+                bot.send_message(message.chat.id, "ESSE PDF fayl yuklab olindi✅️")
+                
+                try:
+                    # Download the file
+                    file_id = file_info.file_id
+                    file_info = bot.get_file(file_id)
+                    downloaded_file = bot.download_file(file_info.file_path)
+                    
+                    # Save file temporarily
+                    temp_essay_pdf_path = f"temp_essay_pdf_{user_id}.pdf"
+                    with open(temp_essay_pdf_path, 'wb') as f:
+                        f.write(downloaded_file)
+                    
+                    # Save the essay PDF path for later use
+                    user_data[user_id]['essay_pdf_path'] = temp_essay_pdf_path
+                    user_data[user_id]['has_essay_pdf'] = True
+                    
+                    # Process both files
+                    if user_data[user_id].get('has_test_pdf', False):
+                        bot.send_message(message.chat.id, "Fayllar qayta ishlanmoqda, iltimos kuting...")
+                        process_both_files(message, user_id)
+                    
+                except Exception as e:
+                    logger.error(f"Error processing essay PDF file: {str(e)}")
+                    bot.send_message(
+                        message.chat.id,
+                        f"ESSE PDF faylni qayta ishlashda xatolik yuz berdi: {str(e)}\n\n"
+                        f"Iltimos, PDF faylingiz to'g'ri formatda ekanligini tekshiring."
+                    )
+                
+                return
+            
+            # Handle incorrect file type
+            else:
+                if not user_data[user_id].get('has_test_pdf', False):
+                    bot.send_message(message.chat.id, "Iltimos, avval TEST natijalari bo'lgan PDF faylini yuboring.")
+                elif not user_data[user_id].get('has_essay_pdf', False):
+                    bot.send_message(message.chat.id, "Iltimos, ESSE natijalari bo'lgan PDF faylini yuboring.")
+                return
+                
+            return
+            
+        # Regular Excel file handling (not in fill mode)
+        if not file_info.file_name.endswith(('.xlsx', '.xls')):
+            bot.send_message(message.chat.id, "Iltimos, faqat Excel fayllarini (.xlsx, .xls) yuboring.")
+            return
+        
+        # Download the file
+        bot.send_message(message.chat.id, "Fayl yuklab olindi✅️ iltimos kuting qayta ishlanmoqda...")
+        
+        try:
+            file_id = file_info.file_id
+            file_info = bot.get_file(file_id)
+            downloaded_file = bot.download_file(file_info.file_path)
+            file_bytes = io.BytesIO(downloaded_file)
+            
+            # Load the data
+            df = pd.read_excel(file_bytes)
+            
+            # Process the data with improved information
+            results_df, ability_estimates, grade_counts, data_df, beta_values = process_exam_data(df)
+            
+            # Prepare Excel data for download
+            excel_data = prepare_excel_for_download(results_df)
+            
+            # Store results for this user, including item difficulties and original data
+            user_data[user_id] = {
+                'results_df': results_df,
+                'ability_estimates': ability_estimates,
+                'grade_counts': grade_counts,
+                'excel_data': excel_data,
+                'data_df': data_df,        # Original data with student responses
+                'beta_values': beta_values  # Item difficulty parameters from Rasch model
+            }
+            
+            # Create keyboard with buttons
+            markup = types.InlineKeyboardMarkup(row_width=2)
+            
+            btn_all_results = types.InlineKeyboardButton('📊 Barcha Natijalar va Grafiklar', callback_data='all_results')
+            btn_excel = types.InlineKeyboardButton('💾 Excel formatda yuklash', callback_data='download_excel')
+            btn_pdf = types.InlineKeyboardButton('📑 PDF formatda yuklash', callback_data='download_pdf')
+            
+            markup.add(btn_all_results)
+            markup.add(btn_excel, btn_pdf)
+            
+            bot.send_message(
+                message.chat.id,
+                f"Faylingiz muvaffaqiyatli qayta ishlandi! Jami {len(results_df)} ta talaba.\n\n"
+                f"Quyidagi ma'lumotlarni ko'rish uchun tugmani bosing:",
+                reply_markup=markup
+            )
+            
+        except Exception as e:
+            logger.error(f"Error processing file: {str(e)}")
+            bot.send_message(
+                message.chat.id,
+                f"Faylni qayta ishlashda xatolik yuz berdi: {str(e)}\n\n"
+                f"Iltimos, Excel faylingiz to'g'ri formatda ekanligini tekshiring:\n"
+                f"- Birinchi ustunda talaba ID raqamlari\n"
+                f"- Qolgan ustunlarda har bir savol bo'yicha javoblar (1 - to'g'ri, 0 - noto'g'ri)\n"
+                f"- Har bir qator - bir talaba, har bir ustun - bir savol"
+            )
+    
+    # Callback handler for inline buttons
+    @bot.callback_query_handler(func=lambda call: True)
+    def callback_query(call):
+        user_id = call.from_user.id
+        bot.answer_callback_query(call.id)
+        
+        if user_id not in user_data:
+            bot.edit_message_text(
+                chat_id=call.message.chat.id,
+                message_id=call.message.message_id,
+                text="Ma'lumotlar topilmadi. Iltimos, qaytadan Excel faylini yuboring."
+            )
+            return
+        
+        user_info = user_data[user_id]
+        results_df = user_info['results_df']
+        grade_counts = user_info['grade_counts']
+        
+        if call.data == "back_to_menu":
+            # Return to the main menu with original buttons
+            markup = types.InlineKeyboardMarkup(row_width=2)
+            
+            btn_all_results = types.InlineKeyboardButton('📊 Barcha Natijalar va Grafiklar', callback_data='all_results')
+            btn_excel = types.InlineKeyboardButton('💾 Excel formatda yuklash', callback_data='download_excel')
+            btn_pdf = types.InlineKeyboardButton('📑 PDF formatda yuklash', callback_data='download_pdf')
+            
+            markup.add(btn_all_results)
+            markup.add(btn_excel, btn_pdf)
+            
+            bot.edit_message_text(
+                chat_id=call.message.chat.id,
+                message_id=call.message.message_id,
+                text=f"BBM (Bilim va malakalarni baholash agentligi) standartlari bo'yicha natijalar tahlili.\n\n"
+                     f"Jami {len(results_df)} ta talaba natijasi qayta ishlandi.\n\n"
+                     f"Quyidagi ma'lumotlarni ko'rish uchun tugmani bosing:",
+                reply_markup=markup
+            )
+            
+            # Create grade distribution chart
+            plt.figure(figsize=(10, 6))
+            
+            # Prepare the plot in memory
+            img_buf = io.BytesIO()
+            
+            # Plot the grade distribution
+            grade_distribution_plot(grade_counts, img_buf)
+            img_buf.seek(0)
+            
+            # Send the plot with better caption
+            bot.send_photo(
+                chat_id=call.message.chat.id,
+                photo=img_buf,
+                caption="📊 Baholar taqsimoti (BBM standartlari bo'yicha)"
+            )
+            # Create keyboard for all results view
+            new_markup = types.InlineKeyboardMarkup(row_width=2)
+            
+            btn_back = types.InlineKeyboardButton('⬅️ Orqaga', callback_data='back_to_menu')
+            btn_excel = types.InlineKeyboardButton('💾 Excel formatda yuklash', callback_data='download_excel')
+            btn_pdf = types.InlineKeyboardButton('📑 PDF formatda yuklash', callback_data='download_pdf')
+            
+            new_markup.add(btn_back)
+            new_markup.add(btn_excel, btn_pdf)
+            
+            bot.edit_message_text(
+                chat_id=call.message.chat.id,
+                message_id=call.message.message_id,
+                text="📊 Baholar taqsimoti yuqorida ko'rsatilgan.",
+                reply_markup=new_markup
+            )
+            
+            # Create new markup with back, excel and pdf buttons
+            new_markup = types.InlineKeyboardMarkup(row_width=2)
+            
+            btn_back = types.InlineKeyboardButton('⬅️ Orqaga', callback_data='back_to_menu')
+            btn_excel = types.InlineKeyboardButton('💾 Excel formatda yuklash', callback_data='download_excel')
+            btn_pdf = types.InlineKeyboardButton('📑 PDF formatda yuklash', callback_data='download_pdf')
+            
+            new_markup.add(btn_back)
+            new_markup.add(btn_excel, btn_pdf)
+            
+            # Edit message for Excel file download
+            bot.edit_message_text(
+                chat_id=call.message.chat.id,
+                message_id=call.message.message_id,
+                text="📋 Excel fayli yuborildi.\n\nBu faylda talabalar natijalari quyidagi ma'lumotlar bilan ko'rsatilgan:\n- Talaba ID raqami\n- Xom ball (to'g'ri javoblar soni)\n- Qobiliyat ko'rsatkichi\n- Standart ball (0-100 shkala)\n- BBM standartlariga muvofiq baho (A+ dan D gacha)",
+                reply_markup=new_markup
+            )
+            
+        elif call.data == "all_results":
+            # 1. First send a results table with the first 20 rows
+            results_text = "🧠 Natijalar jadvali (max 20 ta talaba):\n\n"
+            results_text += "ID | Xom ball | Standart ball | Baho\n"
+            results_text += "-" * 45 + "\n"
+            
+            for idx, row in results_df.head(20).iterrows():
+                results_text += f"{row['Student ID']} | {row['Raw Score']} | {row['Standard Score']:.1f} | {row['Grade']}\n"
+            
+            if len(results_df) > 20:
+                results_text += f"\n... va yana {len(results_df) - 20} ta talaba natijasi mavjud."
+            
+            bot.send_message(
+                chat_id=call.message.chat.id,
+                text=results_text
+            )
+            
+            # 2. Calculate and send statistics
+            stats = calculate_statistics(results_df)
+            
+            stats_text = "📊 Statistika:\n\n"
+            stats_text += f"👥 Jami talabalar soni: {stats['total_students']}\n"
+            
+            # Add average standard score if it exists
+            if 'Standard Score' in results_df.columns:
+                avg_standard = results_df['Standard Score'].mean()
+                stats_text += f"📝 O'rtacha standart ball: {avg_standard:.1f}\n"
+                
+            stats_text += f"📝 O'rtacha xom ball: {stats['avg_raw_score']:.2f}\n"
+            stats_text += f"✅ O'tish foizi: {stats['pass_rate']:.1f}%\n"
+            
+            # Display grade counts summary - most important for users
+            stats_text += "\n📑 Baholar taqsimoti:\n"
+            
+            # Use BBM grade order
+            grade_order = ['A+', 'A', 'B+', 'B', 'C+', 'C', 'D']
+            
+            for grade in grade_order:
+                count = grade_counts.get(grade, 0)
+                percentage = (count / stats['total_students']) * 100 if stats['total_students'] > 0 else 0
+                grade_description = GRADE_DESCRIPTIONS[grade].split(':')[0]  # Just take the first part of description
+                stats_text += f"{grade} - {grade_description}: {count} talaba ({percentage:.1f}%)\n"
+            
+            bot.send_message(
+                chat_id=call.message.chat.id,
+                text=stats_text
+            )
+            
+            # 3. Create and send grade distribution chart with improved quality
+            plt.figure(figsize=(12, 8), dpi=150)
+            
+            # Prepare the plot in memory
+            grade_img_buf = io.BytesIO()
+            
+            # Plot the grade distribution with improved quality
+            grade_distribution_plot(grade_counts, grade_img_buf)
+            grade_img_buf.seek(0)
+            
+            # Send the plot with better caption
+            bot.send_photo(
+                chat_id=call.message.chat.id,
+                photo=grade_img_buf,
+                caption="📊 Baholar taqsimoti (BBM standartlari bo'yicha)"
+            )
+            
+            # 4. Create and send ability distribution chart with improved quality
+            plt.figure(figsize=(12, 8), dpi=150)
+            
+            # Prepare the plot in memory
+            ability_img_buf = io.BytesIO()
+            
+            # Plot the ability distribution with improved quality
+            ability_distribution_plot(user_info['ability_estimates'], ability_img_buf)
+            ability_img_buf.seek(0)
+            
+            # Send the plot with better, more informative caption
+            bot.send_photo(
+                chat_id=call.message.chat.id,
+                photo=ability_img_buf,
+                caption="📈 Talabalarning qobiliyat taqsimoti\n(Imtihonda ko'rsatilgan natijalarga asoslangan)"
+            )
+            
+            # 5. NEW: Create and send item difficulty analysis chart
+            if 'data_df' in user_info and 'beta_values' in user_info:
+                plt.figure(figsize=(14, 12), dpi=150)
+                
+                # Prepare the plot in memory
+                item_difficulty_img_buf = io.BytesIO()
+                
+                # Plot the item difficulty analysis
+                item_difficulty_plot(user_info['data_df'], user_info['beta_values'], item_difficulty_img_buf)
+                item_difficulty_img_buf.seek(0)
+                
+                # Send the plot with informative caption
+                bot.send_photo(
+                    chat_id=call.message.chat.id,
+                    photo=item_difficulty_img_buf,
+                    caption="📝 Savollar qiyinligi tahlili\n55 ta savolning qiyinlik darajasi va ularga to'g'ri javob bergan talabalar foizi"
+                )
+                
+                # Prepare statistics for top 5 easiest and hardest questions
+                difficulty_stats = []
+                
+                # If we have beta values (difficulty parameters)
+                if user_info['beta_values'] is not None and len(user_info['beta_values']) > 0:
+                    # Calculate correct answer percentages
+                    percentages = []
+                    for i in range(len(user_info['beta_values'])):
+                        # Find the corresponding column in data_df
+                        if i+1 < len(user_info['data_df'].columns):
+                            col_name = user_info['data_df'].columns[i+1]  # +1 because first column is student ID
+                            correct_count = user_info['data_df'][col_name].sum()
+                            total_count = len(user_info['data_df'])
+                            percentages.append(100 * correct_count / total_count if total_count > 0 else 0)
+                
+                    # Create list of (difficulty, question number, percentage)
+                    difficulty_with_index = [(beta, i+1, percent) for i, (beta, percent) 
+                                            in enumerate(zip(user_info['beta_values'], percentages))]
+                    
+                    # Sort by difficulty (high values = harder questions)
+                    difficulty_with_index.sort(key=lambda x: x[0], reverse=True)
+                    
+                    # Get top 5 hardest, ideal and easiest questions
+                    hardest = difficulty_with_index[:5]  # Eng qiyin 5 ta
+                    
+                    # Eng ideal (markaziy) 5 ta savolni topish
+                    # Savollarni tartiblash
+                    sorted_by_abs_diff = sorted(difficulty_with_index, 
+                                              key=lambda x: abs(x[0]),  # 0 ga eng yaqin qiymat
+                                              reverse=False)  # 0 ga yaqinlik bo'yicha tartiblash
+                    ideal = sorted_by_abs_diff[:5]  # 0 ga eng yaqin 5 ta savol
+                    
+                    # Eng oson 5 ta savol (eng past qiyinlik parametrli)
+                    easiest = sorted(difficulty_with_index, key=lambda x: x[0], reverse=False)[:5]
+                    
+                    # Create messages
+                    hardest_text = "🔴 Eng qiyin 5 ta savol:\n"
+                    for i, (diff, q_num, percent) in enumerate(hardest):
+                        hardest_text += f"{i+1}. #{q_num} savol: Qiyinlik={diff:.2f}, To'g'ri javoblar: {percent:.1f}%\n"
+                    
+                    ideal_text = "\n🟡 Eng ideal (o'rtacha) 5 ta savol:\n"
+                    for i, (diff, q_num, percent) in enumerate(ideal):
+                        ideal_text += f"{i+1}. #{q_num} savol: Qiyinlik={diff:.2f}, To'g'ri javoblar: {percent:.1f}%\n"
+                    
+                    easiest_text = "\n🟢 Eng oson 5 ta savol:\n"
+                    for i, (diff, q_num, percent) in enumerate(easiest):
+                        easiest_text += f"{i+1}. #{q_num} savol: Qiyinlik={diff:.2f}, To'g'ri javoblar: {percent:.1f}%\n"
+                    
+                    bot.send_message(
+                        chat_id=call.message.chat.id,
+                        text=hardest_text + ideal_text + easiest_text
+                    )
+            
+            # 6. Update the main message with back button
+            new_markup = types.InlineKeyboardMarkup(row_width=2)
+            
+            btn_back = types.InlineKeyboardButton('⬅️ Orqaga', callback_data='back_to_menu')
+            btn_excel = types.InlineKeyboardButton('💾 Excel formatda yuklash', callback_data='download_excel')
+            btn_pdf = types.InlineKeyboardButton('📑 PDF formatda yuklash', callback_data='download_pdf')
+            
+            new_markup.add(btn_back)
+            new_markup.add(btn_excel, btn_pdf)
+            
+            bot.edit_message_text(
+                chat_id=call.message.chat.id,
+                message_id=call.message.message_id,
+                text="📊 Barcha natijalar va grafiklar yuqorida ko'rsatilgan.\n\nExcel yoki PDF formatda yuklash uchun tegishli tugmalarni bosing.",
+                reply_markup=new_markup
+            )
+            
+        elif call.data == "download_pdf":
+            # Prepare PDF file for download
+            title = "REPETITSION TEST NATIJALARI"
+            pdf_data = prepare_pdf_for_download(results_df, title)
+            
+            # Send the PDF file
+            bot.send_document(
+                chat_id=call.message.chat.id,
+                document=pdf_data,
+                visible_file_name="bbm_rasch_model_results.pdf",
+                caption="📑 BBM standartlari bo'yicha Rasch model natijalarining PDF fayli."
+            )
+        
+
+    
+    # Create grade distribution plot
+    def grade_distribution_plot(grade_counts, img_buf):
+        """Create a grade distribution plot and save to BytesIO buffer."""
+        # Set a clean style for better visuals
+        plt.style.use('seaborn-v0_8-whitegrid')
+        
+        # Define grade order for consistent display (BBM standards)
+        grade_order = ['A+', 'A', 'B+', 'B', 'C+', 'C', 'D']
+        
+        # Prepare data ensuring all grades are represented
+        grades = []
+        counts = []
+        colors = []
+        
+        # Grade colors for visualization - more vibrant colors
+        grade_colors = {
+            'A+': '#1E8449',  # Dark Green
+            'A': '#28B463',   # Green
+            'B+': '#58D68D',  # Light Green
+            'B': '#3498DB',   # Blue
+            'C+': '#5DADE2',  # Light Blue
+            'C': '#F4D03F',   # Yellow
+            'D': '#E67E22',   # Orange
+        }
+        
+        for grade in grade_order:
+            if grade in grade_counts:
+                grades.append(grade)
+                counts.append(grade_counts[grade])
+                colors.append(grade_colors[grade])
+            else:
+                grades.append(grade)
+                counts.append(0)
+                colors.append(grade_colors[grade])
+        
+        # Create the figure and axis with larger size for better quality
+        fig, ax = plt.subplots(figsize=(12, 8))
+        
+        # Create the bar chart with slightly wider bars and edge color
+        bars = ax.bar(
+            grades, 
+            counts, 
+            color=colors,
+            width=0.6,
+            edgecolor='white',
+            linewidth=1.5
+        )
+        
+        # Add count labels on top of each bar with better styling
+        for i, bar in enumerate(bars):
+            height = bar.get_height()
+            if height > 0:  # Only add label if there are students with this grade
+                ax.text(
+                    bar.get_x() + bar.get_width()/2.,
+                    height + 0.3,  # Slightly higher position
+                    str(height),
+                    ha='center',
+                    va='bottom',
+                    fontweight='bold',
+                    fontsize=12,
+                    color='black'
+                )
+        
+        # Get the maximum count for y-axis scaling
+        max_count = max(counts) if counts else 0
+        
+        # Calculate a good upper limit for the y-axis (rounded up to nearest 5)
+        y_upper = 5 * ((int(max_count * 1.2) // 5) + 1) if max_count > 0 else 10
+        
+        # Customize the chart with better styling
+        ax.set_ylim(0, y_upper)
+        ax.set_xlabel('Baho', fontsize=14, fontweight='bold')
+        ax.set_ylabel('Talabalar soni', fontsize=14, fontweight='bold')
+        ax.set_title('BAHOLAR TAQSIMOTI', fontsize=16, fontweight='bold')
+        
+        # Customize grid
+        ax.grid(axis='y', linestyle='--', alpha=0.7)
+        
+        # Customize ticks
+        ax.tick_params(axis='both', labelsize=12)
+        
+        # Add custom grade descriptions as a secondary x-axis label
+        grade_description = {
+            'A+': 'Alo (70+)',
+            'A': 'Alo (65-70)',
+            'B+': 'Yaxshi (60-65)',
+            'B': 'Yaxshi (55-60)',
+            'C+': 'Qoniqarli (50-55)',
+            'C': 'Qoniqarli (46-50)',
+            'D': 'DTM ga tavsiya etilmaydi'
+        }
+        
+        # Display grade descriptions
+        ax.set_xticklabels([f"{grade}\n{grade_description[grade]}" for grade in grades])
+        
+        # Add percentage labels below each count
+        total_students = sum(counts)
+        if total_students > 0:
+            for i, bar in enumerate(bars):
+                height = bar.get_height()
+                if height > 0:
+                    percentage = (height / total_students) * 100
+                    ax.text(
+                        bar.get_x() + bar.get_width()/2.,
+                        height / 2,  # Position in middle of bar
+                        f"{percentage:.1f}%",
+                        ha='center',
+                        va='center',
+                        fontweight='bold',
+                        color='white' if grades[i] in ['A+', 'A', 'B'] else 'black',
+                        fontsize=11
+                    )
+        
+        # Adjust layout
+        fig.tight_layout()
+        
+        # Disable spines
+        for spine in ['top', 'right']:
+            ax.spines[spine].set_visible(False)
+        
+        # Save to buffer with higher DPI for better quality
+        plt.savefig(img_buf, format='png', dpi=150, bbox_inches='tight')
+        plt.close()
+
+    # Create item difficulty plot and analysis function
+    def item_difficulty_plot(data_df, beta_values, img_buf):
+        """
+        Create item difficulty analysis and plot showing which questions were the most difficult.
+        
+        Parameters:
+        - data_df: DataFrame containing raw student responses
+        - beta_values: Array of item difficulty parameters from Rasch model
+        - img_buf: BytesIO buffer to save the plot
+        """
+        if data_df is None or beta_values is None:
+            # Create empty plot if no data is available
+            fig, ax = plt.subplots(figsize=(12, 8))
+            ax.text(0.5, 0.5, "Ma'lumotlar mavjud emas", ha='center', va='center', fontsize=16)
+            plt.savefig(img_buf, format='png', dpi=150, bbox_inches='tight')
+            plt.close()
+            return
+        
+        # Set a clean style for better visuals
+        plt.style.use('seaborn-v0_8-whitegrid')
+        
+        # Create figure and axes
+        fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(14, 12), gridspec_kw={'height_ratios': [3, 1]})
+        
+        # Get number of questions/items
+        num_items = len(beta_values)
+        
+        # Calculate percent correct for each item
+        percent_correct = []
+        for i in range(num_items):
+            # Find the corresponding column in data_df (columns after student_id)
+            if i+1 < len(data_df.columns):
+                col_name = data_df.columns[i+1]  # +1 because first column is student ID
+                correct_count = data_df[col_name].sum()
+                total_count = len(data_df)
+                percent_correct.append(100 * correct_count / total_count if total_count > 0 else 0)
+        
+        # Create item indices
+        item_indices = np.arange(1, num_items+1)
+        
+        # Sort items by difficulty for classification
+        difficulty_with_index = [(beta, i+1, percent) for i, (beta, percent) in enumerate(zip(beta_values, percent_correct))]
+        difficulty_with_index.sort(key=lambda x: x[0], reverse=True)  # Sort by beta (difficulty)
+        
+        # Classify items into categories based on percentiles
+        num_items_per_category = max(1, num_items // 5)  # Aim for roughly 5 categories
+        
+        very_difficult = [item[1] for item in difficulty_with_index[:num_items_per_category]]
+        difficult = [item[1] for item in difficulty_with_index[num_items_per_category:2*num_items_per_category]]
+        moderate = [item[1] for item in difficulty_with_index[2*num_items_per_category:3*num_items_per_category]]
+        easy = [item[1] for item in difficulty_with_index[3*num_items_per_category:4*num_items_per_category]]
+        very_easy = [item[1] for item in difficulty_with_index[4*num_items_per_category:]]
+        
+        # Create colors based on difficulty
+        colors = []
+        for i in range(1, num_items+1):
+            if i in very_difficult:
+                colors.append('#E74C3C')  # Red for very difficult
+            elif i in difficult:
+                colors.append('#F39C12')  # Orange for difficult
+            elif i in moderate:
+                colors.append('#F1C40F')  # Yellow for moderate
+            elif i in easy:
+                colors.append('#2ECC71')  # Green for easy
+            elif i in very_easy:
+                colors.append('#27AE60')  # Dark green for very easy
+            else:
+                colors.append('#3498DB')  # Blue default
+        
+        # Plot item difficulties
+        bars = ax1.bar(item_indices, beta_values, color=colors, width=0.7, 
+                  edgecolor='white', linewidth=1)
+        
+        # Add percent correct as text on each bar
+        for i, (bar, percent) in enumerate(zip(bars, percent_correct)):
+            height = bar.get_height()
+            y_pos = height + 0.1 if height >= 0 else height - 0.3
+            ax1.text(bar.get_x() + bar.get_width() / 2, y_pos,
+                   f"{percent:.1f}%", ha='center', va='bottom' if height >= 0 else 'top',
+                   fontsize=8, rotation=90, color='black', fontweight='bold')
+        
+        # Add horizontal lines for difficulty categorization
+        percentiles = np.percentile(beta_values, [20, 40, 60, 80])
+        
+        ax1.axhline(y=percentiles[3], color='#E74C3C', linestyle='--', alpha=0.7)
+        ax1.axhline(y=percentiles[2], color='#F39C12', linestyle='--', alpha=0.7)
+        ax1.axhline(y=percentiles[1], color='#F1C40F', linestyle='--', alpha=0.7)
+        ax1.axhline(y=percentiles[0], color='#2ECC71', linestyle='--', alpha=0.7)
+        
+        # Customize the chart
+        ax1.set_ylabel('Qiyinlik darajasi (Beta)', fontsize=14, fontweight='bold')
+        ax1.set_title('SAVOLLAR QIYINLIGI TAHLILI', fontsize=16, fontweight='bold')
+        ax1.set_xticks(item_indices)
+        ax1.set_xticklabels([str(i) for i in item_indices], rotation=90, fontsize=8)
+        ax1.set_xlabel('Savol raqami', fontsize=14, fontweight='bold')
+        
+        # Add legend for difficulty categories
+        legend_elements = [
+            plt.Line2D([0], [0], color='#E74C3C', lw=4, label='Juda qiyin'),
+            plt.Line2D([0], [0], color='#F39C12', lw=4, label='Qiyin'),
+            plt.Line2D([0], [0], color='#F1C40F', lw=4, label='O\'rta'),
+            plt.Line2D([0], [0], color='#2ECC71', lw=4, label='Oson'),
+            plt.Line2D([0], [0], color='#27AE60', lw=4, label='Juda oson')
+        ]
+        ax1.legend(handles=legend_elements, loc='upper right', fontsize=10)
+        
+        # Add grid lines
+        ax1.grid(axis='y', linestyle='--', alpha=0.7)
+        
+        # Customize ticks
+        ax1.tick_params(axis='both', labelsize=12)
+        
+        # Second subplot: Analysis of top 5 difficult and top 5 easy questions
+        hardest_items = difficulty_with_index[:5]
+        easiest_items = difficulty_with_index[-5:]
+        
+        # Table data for analysis
+        rows = ['Eng qiyin savollar', 'Eng oson savollar']
+        cols = [f"#{item[1]}: {item[0]:.2f} ({item[2]:.1f}%)" for item in hardest_items + easiest_items]
+        cellText = [
+            [f"#{item[1]}: {item[0]:.2f} ({item[2]:.1f}%)" for item in hardest_items],
+            [f"#{item[1]}: {item[0]:.2f} ({item[2]:.1f}%)" for item in easiest_items]
+        ]
+        
+        # Add a table at the bottom
+        ax2.axis('tight')
+        ax2.axis('off')
+        table = ax2.table(cellText=cellText, rowLabels=rows, 
+                         loc='center', cellLoc='center',
+                         colWidths=[0.18] * 5)
+        
+        # Style the table
+        table.auto_set_font_size(False)
+        table.set_fontsize(10)
+        table.scale(1, 1.5)
+        
+        # Color code the table cells
+        for i in range(2):
+            for j in range(5):
+                cell = table[(i, j)]
+                if i == 0:  # Hardest items
+                    cell.set_facecolor('#FADBD8')
+                else:  # Easiest items
+                    cell.set_facecolor('#D5F5E3')
+        
+        # Adjust layout
+        fig.tight_layout()
+        
+        # Save to buffer with higher DPI for better quality
+        plt.savefig(img_buf, format='png', dpi=150, bbox_inches='tight')
+        plt.close()
+        
+    # Create ability distribution plot
+    def ability_distribution_plot(ability_estimates, img_buf):
+        """Create an ability distribution plot and save to BytesIO buffer."""
+        # Set a clean style for better visuals
+        plt.style.use('seaborn-v0_8-whitegrid')
+        
+        fig, ax = plt.subplots(figsize=(12, 8))
+        
+        # Create a better histogram with custom styling
+        n, bins, patches = ax.hist(
+            ability_estimates, 
+            bins=20, 
+            color='#3498DB',  # Nice blue color
+            edgecolor='white',
+            linewidth=1.5,
+            alpha=0.9
+        )
+        
+        # Calculate statistics for annotation
+        mean_ability = np.mean(ability_estimates)
+        median_ability = np.median(ability_estimates)
+        std_ability = np.std(ability_estimates)
+        
+        # Add mean line
+        ax.axvline(mean_ability, color='#E74C3C', linestyle='--', linewidth=2)
+        ax.text(
+            mean_ability, 
+            ax.get_ylim()[1] * 0.9, 
+            f'O\'rtacha: {mean_ability:.2f}',
+            color='#E74C3C',
+            fontweight='bold',
+            ha='center',
+            bbox=dict(facecolor='white', alpha=0.8, edgecolor='none', boxstyle='round,pad=0.5')
+        )
+        
+        # Add a bell curve of the normal distribution for comparison
+        x = np.linspace(min(ability_estimates), max(ability_estimates), 100)
+        y = np.max(n) * 0.9 * np.exp(-(x - mean_ability)**2 / (2 * std_ability**2)) / (std_ability * np.sqrt(2 * np.pi))
+        ax.plot(x, y, 'r-', linewidth=2, alpha=0.6)
+        
+        # Customize the chart
+        ax.set_xlabel('Qobiliyat ko\'rsatkichi', fontsize=14, fontweight='bold')
+        ax.set_ylabel('Talabalar soni', fontsize=14, fontweight='bold')
+        ax.set_title('TALABALAR QOBILIYATI TAQSIMOTI', fontsize=16, fontweight='bold')
+        
+        # Customize grid
+        ax.grid(axis='y', linestyle='--', alpha=0.7)
+        
+        # Customize ticks
+        ax.tick_params(axis='both', labelsize=12)
+        
+        # Add statistics box
+        stats_text = f"Statistik ma'lumotlar:\n"
+        stats_text += f"O'rtacha: {mean_ability:.2f}\n"
+        stats_text += f"Median: {median_ability:.2f}\n"
+        stats_text += f"Standart og'ish: {std_ability:.2f}"
+        
+        props = dict(boxstyle='round', facecolor='#F0F3F4', alpha=0.9)
+        ax.text(
+            0.77, 0.15, stats_text, 
+            transform=ax.transAxes, 
+            fontsize=12,
+            verticalalignment='bottom', 
+            bbox=props
+        )
+        
+        # Adjust layout
+        fig.tight_layout()
+        
+        # Disable spines
+        for spine in ['top', 'right']:
+            ax.spines[spine].set_visible(False)
+        
+        # Save to buffer with higher DPI for better quality
+        plt.savefig(img_buf, format='png', dpi=150, bbox_inches='tight')
+        plt.close()
+
+    print("Bot started and is listening for messages...")
+    # Start the bot
+    bot.infinity_polling()
+
+if __name__ == '__main__':
+    main()

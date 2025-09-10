@@ -1,0 +1,17 @@
+[Unit]
+Description=Rasch Bot Service
+After=network.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/rasch_bot
+Environment=TELEGRAM_TOKEN=8061680273:AAEXYN1YBijmy1owmSxiXrJcIAl40oIAKAE
+ExecStart=/opt/rasch_bot/venv/bin/python /opt/rasch_bot/telegram_bot.py
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

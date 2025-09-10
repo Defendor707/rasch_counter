@@ -1,0 +1,9 @@
+.venv/
+venv/
+__pycache__/
+*.pyc
+*.db
+*.xlsx
+*.zip
+*.pdf
+*.log
