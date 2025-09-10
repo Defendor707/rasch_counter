@@ -446,6 +446,7 @@ def process_exam_data(df, progress_callback=None):
         # Parallel processing uchun chunk_grade funksiyasi
         def chunk_grade(ability_chunk):
             scores = np.array([ability_to_standard_score(a) for a in ability_chunk], dtype=np.float32)
+            scores = np.round(scores, 1)
             grades = np.full(len(scores), 'NC', dtype='<U3')
             
             # Vectorized grading

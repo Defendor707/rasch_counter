@@ -1781,6 +1781,7 @@ def main():
         """
         Assign a grade (A+, A, B+, B, C+, C, NC) based on score.
         """
+        score = round(score, 1)
         if score > 70:
             return 'A+'
         elif score >= 65 and score <= 70:

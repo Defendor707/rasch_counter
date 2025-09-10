@@ -404,6 +404,7 @@ def ability_to_grade(ability, thresholds=None, min_passing_percent=60):
     # Mu = 0 (markazlashtirilgan)
     normalized_ability = (ability + 4) / 8 * 100
     normalized_ability = np.clip(normalized_ability, 0, 100)
+    normalized_ability = float(np.round(normalized_ability, 1))
     
     # BBM standartlariga muvofiq aniq chegaralar
     # Real test natijalariga asoslangan optimallashtirilgan taqsimot
