@@ -1783,15 +1783,15 @@ def main():
         """
         if score > 70:
             return 'A+'
-        elif score >= 65:
+        elif score >= 65 and score <= 70:
             return 'A'
-        elif score >= 60:
+        elif score >= 60 and score < 65:
             return 'B+'
-        elif score >= 55:
+        elif score >= 55 and score < 60:
             return 'B'
-        elif score >= 50:
+        elif score >= 50 and score < 55:
             return 'C+'
-        elif score >= 46:
+        elif score >= 46 and score < 50:
             return 'C'
         else:
             return 'NC'

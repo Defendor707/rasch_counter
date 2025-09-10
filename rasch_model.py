@@ -411,15 +411,15 @@ def ability_to_grade(ability, thresholds=None, min_passing_percent=60):
     # Top 8-12% - A+ (eng yaxshi natija)
     if normalized_ability > 70:
         return 'A+'
-    elif normalized_ability >= 65:
+    elif normalized_ability >= 65 and normalized_ability <= 70:
         return 'A'
-    elif normalized_ability >= 60:
+    elif normalized_ability >= 60 and normalized_ability < 65:
         return 'B+'
-    elif normalized_ability >= 55:
+    elif normalized_ability >= 55 and normalized_ability < 60:
         return 'B'
-    elif normalized_ability >= 50:
+    elif normalized_ability >= 50 and normalized_ability < 55:
         return 'C+'
-    elif normalized_ability >= 46:
+    elif normalized_ability >= 46 and normalized_ability < 50:
         return 'C'
     else:
         return 'NC'

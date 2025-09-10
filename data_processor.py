@@ -450,14 +450,13 @@ def process_exam_data(df, progress_callback=None):
             
             # Vectorized grading
             grades[:] = 'NC'
-            # apply ascending so higher tiers override later
-            grades[scores >= 46] = 'C'
-            grades[scores >= 50] = 'C+'
-            grades[scores >= 55] = 'B'
-            grades[scores >= 60] = 'B+'
-            grades[scores >= 65] = 'A'
+            # explicit, non-overlapping ranges
+            grades[(scores >= 46) & (scores < 50)] = 'C'
+            grades[(scores >= 50) & (scores < 55)] = 'C+'
+            grades[(scores >= 55) & (scores < 60)] = 'B'
+            grades[(scores >= 60) & (scores < 65)] = 'B+'
+            grades[(scores >= 65) & (scores <= 70)] = 'A'
             grades[scores > 70] = 'A+'
-            
             return grades
         
         # Parallel processing agar talabalar ko'p bo'lsa
