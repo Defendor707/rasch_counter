@@ -1781,17 +1781,17 @@ def main():
         """
         Assign a grade (A+, A, B+, B, C+, C, NC) based on score.
         """
-        if score >= 86:
+        if score > 70:
             return 'A+'
-        elif score >= 71:
+        elif score >= 65:
             return 'A'
-        elif score >= 66:
-            return 'B+'
         elif score >= 60:
-            return 'B'
+            return 'B+'
         elif score >= 55:
-            return 'C+'
+            return 'B'
         elif score >= 50:
+            return 'C+'
+        elif score >= 46:
             return 'C'
         else:
             return 'NC'

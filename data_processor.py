@@ -449,12 +449,13 @@ def process_exam_data(df, progress_callback=None):
             grades = np.full(len(scores), 'NC', dtype='<U3')
             
             # Vectorized grading
-            grades[scores >= 85] = 'A+'
-            grades[(scores >= 75) & (scores < 85)] = 'A'
-            grades[(scores >= 65) & (scores < 75)] = 'B+'
-            grades[(scores >= 55) & (scores < 65)] = 'B'
-            grades[(scores >= 45) & (scores < 55)] = 'C+'
-            grades[(scores >= 35) & (scores < 45)] = 'C'
+            grades[:] = 'NC'
+            grades[scores > 70] = 'A+'
+            grades[scores >= 65] = 'A'
+            grades[scores >= 60] = 'B+'
+            grades[scores >= 55] = 'B'
+            grades[scores >= 50] = 'C+'
+            grades[scores >= 46] = 'C'
             
             return grades
         

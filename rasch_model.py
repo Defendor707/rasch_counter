@@ -409,23 +409,17 @@ def ability_to_grade(ability, thresholds=None, min_passing_percent=60):
     # Real test natijalariga asoslangan optimallashtirilgan taqsimot
     
     # Top 8-12% - A+ (eng yaxshi natija)
-    if normalized_ability >= 88:
+    if normalized_ability > 70:
         return 'A+'
-    # Next 12-15% - A (a'lo natija)  
-    elif normalized_ability >= 78:
+    elif normalized_ability >= 65:
         return 'A'
-    # Next 15-18% - B+ (yaxshi natija)
-    elif normalized_ability >= 68:
+    elif normalized_ability >= 60:
         return 'B+'
-    # Next 18-20% - B (qoniqarli natija)
-    elif normalized_ability >= 58:
+    elif normalized_ability >= 55:
         return 'B'
-    # Next 15-18% - C+ (yetarli natija)
-    elif normalized_ability >= 48:
+    elif normalized_ability >= 50:
         return 'C+'
-    # Next 12-15% - C (minimal qoniqarli)
-    elif normalized_ability >= 40:
+    elif normalized_ability >= 46:
         return 'C'
-    # Bottom 15-20% - NC (nomaqbul)
     else:
         return 'NC'
