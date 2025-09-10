@@ -450,12 +450,13 @@ def process_exam_data(df, progress_callback=None):
             
             # Vectorized grading
             grades[:] = 'NC'
-            grades[scores > 70] = 'A+'
-            grades[scores >= 65] = 'A'
-            grades[scores >= 60] = 'B+'
-            grades[scores >= 55] = 'B'
-            grades[scores >= 50] = 'C+'
+            # apply ascending so higher tiers override later
             grades[scores >= 46] = 'C'
+            grades[scores >= 50] = 'C+'
+            grades[scores >= 55] = 'B'
+            grades[scores >= 60] = 'B+'
+            grades[scores >= 65] = 'A'
+            grades[scores > 70] = 'A+'
             
             return grades
         
