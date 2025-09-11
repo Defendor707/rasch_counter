@@ -418,6 +418,7 @@ def process_exam_data(df, progress_callback=None):
     # Ma'lumotlarni NumPy array sifatida olish (tezroq)
     student_ids = df_cleaned[id_column].values.astype(str)
     response_data = df_cleaned[question_columns].values.astype(np.int8)  # int8 xotira tejaydi
+    raw_scores = df_cleaned[question_columns].sum(axis=1).astype(int)
     
     if progress_callback:
         progress_callback(20, "Rasch modeli ishga tushirilmoqda...")
@@ -475,13 +476,17 @@ def process_exam_data(df, progress_callback=None):
         else:
             return chunk_grade(abilities)
     
-    grades = fast_parallel_grade(ability_estimates)
-    
-    # Tezkor raw scores hisoblash
-    raw_scores = np.sum(response_data, axis=1, dtype=np.int16)
-    
-    # Standard scores hisoblash (vectorized)
-    standard_scores = np.clip((ability_estimates + 4) / 8 * 100, 0, 100)
+    # Unified Rasch T-score for grade and display
+    t_scores = np.clip((ability_estimates + 4) / 8 * 100, 0, 100)
+    t_scores = np.round(t_scores, 1)
+    grades = np.full(len(t_scores), 'NC', dtype='<U3')
+    grades[(t_scores >= 46) & (t_scores < 50)] = 'C'
+    grades[(t_scores >= 50) & (t_scores < 55)] = 'C+'
+    grades[(t_scores >= 55) & (t_scores < 60)] = 'B'
+    grades[(t_scores >= 60) & (t_scores < 65)] = 'B+'
+    grades[(t_scores >= 65) & (t_scores < 70)] = 'A'
+    grades[(t_scores >= 70)] = 'A+'
+    standard_scores = t_scores
     
     if progress_callback:
         progress_callback(75, "Natijalar tizimlashtirilmoqda...")
