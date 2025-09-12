@@ -23,6 +23,7 @@ from reportlab.lib.enums import TA_CENTER, TA_LEFT
 from bot_database import BotDatabase
 
 # Enable logging
+from flask import Flask, request
 logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     level=logging.INFO
@@ -31,6 +32,8 @@ logger = logging.getLogger(__name__)
 
 # Keep track of user data
 user_data = {}
+from collections import defaultdict
+user_locks = defaultdict(threading.Lock)
 
 # Placeholder matnlar ro'yxati - turli xil jarayon xabarlari
 PROCESS_PLACEHOLDER_MESSAGES = [
@@ -115,6 +118,14 @@ def migrate_database():
     return True
 
 def main():
+
+    # Webhook configuration
+    webhook_host = os.environ.get("TELEGRAM_WEBHOOK_HOST")
+    webhook_port = int(os.environ.get("TELEGRAM_WEBHOOK_PORT", "8443"))
+    cert_file = os.environ.get("TELEGRAM_CERT_FILE")
+    key_file = os.environ.get("TELEGRAM_KEY_FILE")
+
+    use_webhook = bool(webhook_host and cert_file and key_file)
     """Start the bot."""
     # Get the telegram token
     token = os.environ.get("TELEGRAM_TOKEN")
@@ -172,9 +183,9 @@ def main():
     @bot.message_handler(commands=['start'])
     def start_command(message):
         # Reset any user state if active
-        if message.chat.id in user_data:
+        if message.from_user.id in user_data:
             # Clear any ongoing operation like /ball
-            user_data[message.chat.id] = {}
+            user_data[message.from_user.id] = {}
         
         # Add user to database
         db.add_user(
@@ -192,7 +203,7 @@ def main():
             message.chat.id,
             f"👋 Assalomu alaykum, {user_first_name}!\n\n"
             f"🎓 *Rasch Counter Bot*ga xush kelibsiz!\n\n"
-            f"📝 Excel faylni yuboring va natijalarni oling",
+            f"📝 Excel yuboring yoki /matrix buyrug'i bilan namuna faylni oling",
             parse_mode='Markdown'
         )
         
@@ -203,6 +214,24 @@ def main():
         )
     
     # Help command handler
+
+    @bot.message_handler(commands=["matrix"])
+    def matrix_command(message):
+        """Send pre-made 100x55 Excel matrix."""
+        try:
+            import os
+            matrix_path = "/opt/rasch_counter/.data/rasch_matrix_100x55.xlsx"
+            if os.path.exists(matrix_path):
+                with open(matrix_path, "rb") as f:
+                    bot.send_document(message.chat.id, f)
+            else:
+                bot.send_message(message.chat.id, "Matrix fayli topilmadi. Admin bilan bog'laning.")
+        except Exception as e:
+            bot.send_message(message.chat.id, f"Matrix yuborishda xatolik: {str(e)}")
+            return
+            bot.send_message(message.chat.id, f"Matrix generatsiyada xatolik: {str(e)}")
+            return
+
     @bot.message_handler(commands=['help'])
     def help_command(message):
         # Basic help message for all users
@@ -229,7 +258,7 @@ def main():
         """
         
         # Save user state to wait for first file
-        user_data[message.chat.id] = {
+        user_data[message.from_user.id] = {
             'waiting_for_balls': 'first_file',
             'first_file': None,
             'second_file': None
@@ -560,7 +589,7 @@ def main():
             return
         
         # Check if user is in /ball command mode
-        if message.chat.id in user_data and 'waiting_for_balls' in user_data[message.chat.id]:
+        if message.from_user.id in user_data and 'waiting_for_balls' in user_data[message.from_user.id]:
             handle_ball_file(message, file_info)
             return
         
@@ -1673,10 +1702,10 @@ def main():
                 return
             
             # Processing based on state (first or second file)
-            if user_data[chat_id]['waiting_for_balls'] == 'first_file':
+            if user_data[user_id]['waiting_for_balls'] == 'first_file':
                 # Save first file data
-                user_data[chat_id]['first_file'] = df
-                user_data[chat_id]['waiting_for_balls'] = 'second_file'
+                user_data[user_id]['first_file'] = df
+                user_data[user_id]['waiting_for_balls'] = 'second_file'
                 
                 # Ask for second file
                 bot.send_message(
@@ -1685,9 +1714,9 @@ def main():
                     "Iltimos, ikkinchi Excel faylni yuboring."
                 )
                 
-            elif user_data[chat_id]['waiting_for_balls'] == 'second_file':
+            elif user_data[user_id]['waiting_for_balls'] == 'second_file':
                 # Save second file
-                user_data[chat_id]['second_file'] = df
+                user_data[user_id]['second_file'] = df
                 
                 # Process both files
                 process_message = bot.send_message(
@@ -1697,8 +1726,8 @@ def main():
                 )
                 
                 # Get both dataframes
-                df1 = user_data[chat_id]['first_file']
-                df2 = user_data[chat_id]['second_file']
+                df1 = user_data[user_id]['first_file']
+                df2 = user_data[user_id]['second_file']
                 
                 # Merge data on 'Talaba' column and calculate average
                 result_df = calculate_average_scores(df1, df2)
@@ -1728,7 +1757,7 @@ def main():
                 )
                 
                 # Reset user state
-                user_data[chat_id] = {}
+                user_data[user_id] = {}
         
         except Exception as e:
             bot.send_message(
@@ -1737,7 +1766,7 @@ def main():
                 f"Iltimos, fayllarni tekshirib, qayta urinib ko'ring."
             )
             # Reset user state
-            user_data[chat_id] = {}
+            user_data[user_id] = {}
     
     # Function to calculate average scores between two dataframes
     def calculate_average_scores(df1, df2):
@@ -1899,8 +1928,19 @@ def main():
         return excel_data
     
     print("Bot ishga tushdi akasi...")
-    # Start the bot
-    bot.infinity_polling()
+    if use_webhook:
+        app = Flask(__name__)
+        @app.route(f"/bot{token}", methods=["POST"])
+        def telegram_webhook():
+            upd = telebot.types.Update.de_json(request.stream.read().decode("utf-8"))
+            bot.process_new_updates([upd])
+            return "ok", 200
+        bot.remove_webhook()
+        with open(cert_file, "rb") as cert:
+            bot.set_webhook(url=f"https://{webhook_host}:{webhook_port}/bot{token}", certificate=cert)
+        app.run(host="0.0.0.0", port=webhook_port, ssl_context=(cert_file, key_file))
+    else:
+        bot.infinity_polling(timeout=20, long_polling_timeout=20)
 
 if __name__ == '__main__':
     main()
