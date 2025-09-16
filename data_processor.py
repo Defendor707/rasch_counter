@@ -483,7 +483,8 @@ def process_exam_data(df, progress_callback=None):
     if theta_std <= 0 or not np.isfinite(theta_std):
         theta_std = 1e-6
     t_scores = 50.0 + 10.0 * (ability_estimates / theta_std)
-    t_scores = np.clip(np.round(t_scores, 1), 0, 100)
+    # Do not round here to avoid collapsing close scores; only clip to display range
+    t_scores = np.clip(t_scores, 0, 100)
     grades = np.full(len(t_scores), 'NC', dtype='<U3')
     grades[(t_scores >= 46) & (t_scores < 50)] = 'C'
     grades[(t_scores >= 50) & (t_scores < 55)] = 'C+'
