@@ -429,12 +429,12 @@ def process_exam_data(df, progress_callback=None):
     if n_students > 1000:
         # Server quvvatining 80% ishlatish uchun optimal chunk size
         optimal_chunk = max(n_students // MAX_WORKERS, 800)
-        ability_estimates, item_difficulties = rasch_model(
+        ability_estimates, item_difficulties, item_discriminations = rasch_model(
             response_data, 
             max_students=optimal_chunk
         )
     else:
-        ability_estimates, item_difficulties = rasch_model(response_data)
+        ability_estimates, item_difficulties, item_discriminations = rasch_model(response_data)
     
     if progress_callback:
         progress_callback(50, "Baholar hisoblanmoqda...")
@@ -476,15 +476,17 @@ def process_exam_data(df, progress_callback=None):
         else:
             return chunk_grade(abilities)
     
-    # Unified Rasch T-score for grade and display (Z-based): T = 50 + 10Z
-    # Z = (theta - mean) / std; theta is already mean-centered in rasch_model
-    # Use sample standard deviation with ddof=1 for robustness
+    # T-score: dataset ichida standartlashtirish (Z -> T)
+    # Bu 10–90 oralig'ida siqilib qolishni kamaytiradi va guruhga nisbatan pozitsiyani beradi
+    theta_mean = float(np.mean(ability_estimates)) if len(ability_estimates) > 0 else 0.0
     theta_std = float(np.std(ability_estimates, ddof=1)) if len(ability_estimates) > 1 else 0.0
     if theta_std <= 0 or not np.isfinite(theta_std):
         theta_std = 1e-6
-    t_scores = 50.0 + 10.0 * (ability_estimates / theta_std)
-    # Do not round here to avoid collapsing close scores; only clip to display range
+    z_scores = (ability_estimates - theta_mean) / theta_std
+    t_scores = 50.0 + 10.0 * z_scores
     t_scores = np.clip(t_scores, 0, 100)
+    
+    # UZBMB standartlariga muvofiq baholash
     grades = np.full(len(t_scores), 'NC', dtype='<U3')
     grades[(t_scores >= 46) & (t_scores < 50)] = 'C'
     grades[(t_scores >= 50) & (t_scores < 55)] = 'C+'
@@ -510,8 +512,42 @@ def process_exam_data(df, progress_callback=None):
     grade_order_map = {'A+': 0, 'A': 1, 'B+': 2, 'B': 3, 'C+': 4, 'C': 5, 'NC': 6}
     results_df['Grade_Order'] = results_df['Grade'].apply(lambda x: grade_order_map.get(x, 6))
     
-    # Tartiblash
-    results_df = results_df.sort_values(by=['Grade_Order', 'Standard Score'], 
+    # Tie-breaker: bir xil T-score va grade bo'lsa, qiyin savollarga to'g'ri javob ko'proq bo'lganlar yuqorida
+    try:
+        # Compute weighted correct count by item difficulty (harder items have larger weight)
+        eps = 1e-6
+        # 2PL: weight = a * (max_beta - beta)
+        max_beta = float(np.max(item_difficulties)) if len(item_difficulties) > 0 else 0.0
+        weights = (max_beta - item_difficulties) * (item_discriminations if item_discriminations is not None else 1.0) + eps
+        resp_mat = response_data.astype(np.float64)
+        weighted_correct = np.dot(resp_mat, weights)
+        results_df['Weighted Correct'] = weighted_correct
+
+        # Hard-correct count: correct answers on items harder than average (beta > 0)
+        hard_mask = (item_difficulties > 0) if len(item_difficulties) > 0 else np.zeros(resp_mat.shape[1], dtype=bool)
+        hard_correct = (resp_mat[:, hard_mask]).sum(axis=1) if hard_mask.any() else np.zeros(resp_mat.shape[0])
+        results_df['Hard Correct'] = hard_correct
+
+        # Build a ranked score (presentation-only) to deterministically break ties without changing grades
+        # Normalize components to [0,1]
+        wc_min, wc_max = float(np.min(weighted_correct)), float(np.max(weighted_correct))
+        wc_norm = (weighted_correct - wc_min) / (wc_max - wc_min + eps)
+        if hard_mask.any():
+            hc_min, hc_max = float(np.min(hard_correct)), float(np.max(hard_correct))
+            hc_norm = (hard_correct - hc_min) / (hc_max - hc_min + eps)
+        else:
+            hc_norm = np.zeros_like(wc_norm)
+
+        # Very small adjustments to avoid changing grades (<= 0.03 total)
+        ranked_score = standard_scores + 0.02 * wc_norm + 0.01 * hc_norm
+        results_df['Ranked Score'] = ranked_score.astype(np.float32)
+    except Exception:
+        results_df['Weighted Correct'] = 0.0
+        results_df['Hard Correct'] = 0.0
+        results_df['Ranked Score'] = results_df['Standard Score']
+
+    # Tartiblash: Grade -> Ranked Score (deterministic, fewer ties)
+    results_df = results_df.sort_values(by=['Grade_Order', 'Ranked Score'], 
                                       ascending=[True, False])
     
     if progress_callback:
