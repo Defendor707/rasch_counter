@@ -476,9 +476,14 @@ def process_exam_data(df, progress_callback=None):
         else:
             return chunk_grade(abilities)
     
-    # Unified Rasch T-score for grade and display
-    t_scores = np.clip((ability_estimates + 4) / 8 * 100, 0, 100)
-    t_scores = np.round(t_scores, 1)
+    # Unified Rasch T-score for grade and display (Z-based): T = 50 + 10Z
+    # Z = (theta - mean) / std; theta is already mean-centered in rasch_model
+    # Use sample standard deviation with ddof=1 for robustness
+    theta_std = float(np.std(ability_estimates, ddof=1)) if len(ability_estimates) > 1 else 0.0
+    if theta_std <= 0 or not np.isfinite(theta_std):
+        theta_std = 1e-6
+    t_scores = 50.0 + 10.0 * (ability_estimates / theta_std)
+    t_scores = np.clip(np.round(t_scores, 1), 0, 100)
     grades = np.full(len(t_scores), 'NC', dtype='<U3')
     grades[(t_scores >= 46) & (t_scores < 50)] = 'C'
     grades[(t_scores >= 50) & (t_scores < 55)] = 'C+'
