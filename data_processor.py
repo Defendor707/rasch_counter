@@ -597,8 +597,8 @@ def prepare_simplified_excel(results_df, title="Nazorat Ballari"):
         worksheet.set_column('A:A', 35)  # Ism Familiya
         worksheet.set_column('B:B', 12)  # Ball
         
-        # Format score column with 1 decimal place
-        score_format = workbook.add_format({'num_format': '0.0', 'border': 1})
+        # Format score column with 2 decimal places
+        score_format = workbook.add_format({'num_format': '0.00', 'border': 1})
         for row_num in range(len(simplified_df)):
             worksheet.write(row_num+1, 1, simplified_df['Ball'].iloc[row_num], score_format)
     
@@ -650,6 +650,8 @@ def prepare_simplified_excel(results_df, title="Nazorat Ballari"):
             'align': 'center',
             'valign': 'vcenter'
         })
+        # Two-decimal score format for 'Ball' column
+        score_format = workbook.add_format({'num_format': '0.00'})
         
         # Format the header row
         for col_num, value in enumerate(simplified_df.columns.values):
@@ -657,7 +659,7 @@ def prepare_simplified_excel(results_df, title="Nazorat Ballari"):
         
         # Set column widths
         worksheet.set_column('A:A', 35)  # Student name (Ism-familiya uchun kattaroq kenglik)
-        worksheet.set_column('B:B', 10)  # Score
+        worksheet.set_column('B:B', 10, score_format)  # Score (2 decimals)
     
     # Reset the pointer to the beginning of the BytesIO object
     excel_data.seek(0)
@@ -1299,7 +1301,7 @@ def prepare_pdf_for_download(results_df, title="REPETITSION TEST NATIJALARI"):
         row_data = [
             str(row['Rank']) if 'Rank' in row else str(i+1),  # Rank
             str(row['Student ID']),       # Ism familiya
-            f"{row['Standard Score']:.1f}",  # BALL
+            f"{row['Standard Score']:.2f}",  # BALL (2 decimals)
             grade                         # DARAJA
         ]
         
