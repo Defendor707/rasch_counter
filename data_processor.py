@@ -672,6 +672,12 @@ def prepare_simplified_excel(results_df, title="Nazorat Ballari"):
     # Sort by score in descending order
     simplified_df = simplified_df.sort_values(by='Ball', ascending=False).reset_index(drop=True)
     
+    # Add ranking column
+    simplified_df['Rin'] = range(1, len(simplified_df) + 1)
+    
+    # Reorder columns to put Rin first
+    simplified_df = simplified_df[['Rin', 'Talaba', 'Ball']]
+    
     # Create a BytesIO object
     excel_data = io.BytesIO()
     
@@ -1130,14 +1136,13 @@ def prepare_excel_for_download(results_df):
     # Copy the dataframe to avoid modifying the original
     df = results_df.copy()
     
-    # Add Rank column if not already present
-    if 'Rank' not in df.columns:
-        df['Rank'] = range(1, len(df) + 1)
+    # Sort by Standard Score in descending order first
+    df = df.sort_values(by='Standard Score', ascending=False).reset_index(drop=True)
+    
+    # Add Rank column - always ensure proper sequential ranking
+    df['Rank'] = range(1, len(df) + 1)
     
     # OTM percentage calculation removed as per client request
-    
-    # Sort by Standard Score in descending order
-    df = df.sort_values(by='Standard Score', ascending=False).reset_index(drop=True)
     
     # Reorder columns to put 'Rank' before 'Student ID'
     cols = df.columns.tolist()
@@ -1294,15 +1299,14 @@ def prepare_pdf_for_download(results_df, title="REPETITSION TEST NATIJALARI"):
     # Sort the dataframe by scores in descending order for better presentation
     results_df_sorted = results_df.sort_values(by='Standard Score', ascending=False).reset_index(drop=True)
     
-    # Add a rank column if not present
-    if 'Rank' not in results_df_sorted.columns:
-        results_df_sorted['Rank'] = range(1, len(results_df_sorted) + 1)
+    # Add a rank column - always ensure proper sequential ranking
+    results_df_sorted['Rank'] = range(1, len(results_df_sorted) + 1)
     
-    # Column widths optimized for landscape
-    col_widths = [8*mm, 60*mm, 20*mm, 15*mm]
+    # Column widths optimized for landscape - wider to fill full page
+    col_widths = [12*mm, 65*mm, 25*mm, 20*mm, 30*mm]  # Made OTM foizi column wider
     
     # Prepare table header
-    table_data = [["NO", "ISM FAMILIYA", "BALL", "DARAJA"]]
+    table_data = [["NO", "ISM FAMILIYA", "BALL", "DARAJA", "OTM FOIZI"]]
     
     # Process section data if available
     section_data_available = False
@@ -1327,7 +1331,7 @@ def prepare_pdf_for_download(results_df, title="REPETITSION TEST NATIJALARI"):
                     for section in sections:
                         table_data[0].append(f"{section}")
                         section_columns.append(section)
-                        col_widths.append(20*mm)
+                        col_widths.append(25*mm)  # Increased section column width
     except Exception as e:
         print(f"Error loading section data: {e}")
         section_data_available = False
@@ -1340,12 +1344,30 @@ def prepare_pdf_for_download(results_df, title="REPETITSION TEST NATIJALARI"):
         # Get grade description
         grade_desc = grade_descriptions.get(grade, "")
         
-        # Prepare row data
+        # Prepare row data - ensure proper ranking
+        rank_value = i + 1  # Always use sequential ranking starting from 1
+        if 'Rank' in row and pd.notna(row['Rank']):
+            try:
+                rank_value = int(row['Rank'])
+            except (ValueError, TypeError):
+                rank_value = i + 1
+        
+        # Calculate OTM percentage (65 is 100% minimum score)
+        otm_percentage = (row['Standard Score'] / 65) * 100 if row['Standard Score'] > 0 else 0
+        otm_percentage = min(otm_percentage, 100)  # Cap at 100%
+        
+        # Format OTM percentage - show 0% for NC grades
+        if grade == 'NC':
+            otm_text = "0%"  # 0% for NC grades
+        else:
+            otm_text = f"{otm_percentage:.1f}%"
+        
         row_data = [
-            str(row['Rank']) if 'Rank' in row else str(i+1),  # Rank
+            str(rank_value),  # Rank - always sequential
             str(row['Student ID']),       # Ism familiya
             f"{row['Standard Score']:.2f}",  # BALL (2 decimals)
-            grade                         # DARAJA
+            grade,                        # DARAJA
+            otm_text                      # OTM FOIZI
         ]
         
         # Add section scores if available
@@ -1370,14 +1392,15 @@ def prepare_pdf_for_download(results_df, title="REPETITSION TEST NATIJALARI"):
         ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
         ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
         ('FONTNAME', (0, 0), (-1, 0), f'{base_font}-Bold'),
-        ('FONTSIZE', (0, 0), (-1, 0), 10),
+        ('FONTSIZE', (0, 0), (-1, 0), 12),  # Header font size increased
         
         # Row styles
         ('FONTNAME', (0, 1), (-1, -1), base_font),
-        ('FONTSIZE', (0, 1), (-1, -1), 9),
+        ('FONTSIZE', (0, 1), (-1, -1), 11),  # Row font size increased
         ('ALIGN', (0, 1), (1, -1), 'CENTER'),  # № and Rank columns centered
-        ('ALIGN', (3, 1), (5, -1), 'CENTER'),  # Score, percentage and grade columns centered
+        ('ALIGN', (3, 1), (4, -1), 'CENTER'),  # Score and grade columns centered
         ('ALIGN', (2, 1), (2, -1), 'LEFT'),    # Name column left aligned
+        ('ALIGN', (4, 1), (4, -1), 'CENTER'),  # OTM foizi column centered
         
         # Grid lines
         ('GRID', (0, 0), (-1, -1), 0.5, colors.black),
@@ -1392,6 +1415,7 @@ def prepare_pdf_for_download(results_df, title="REPETITSION TEST NATIJALARI"):
     # Apply grade-specific colors for entire rows
     for i in range(1, len(table_data)):
         grade_col = 3  # The 'DARAJA' column index
+        otm_col = 4    # The 'OTM FOIZI' column index
         grade = table_data[i][grade_col]
         
         # Define colors for grades and rows (per user request)
@@ -1399,57 +1423,134 @@ def prepare_pdf_for_download(results_df, title="REPETITSION TEST NATIJALARI"):
             # To'q yashil
             grade_color = colors.HexColor("#006400")  # Dark green
             row_color = colors.HexColor("#E8F5E9")    # Light green background
+            light_grade_color = colors.HexColor("#4CAF50")  # Lighter green for NO, ISM, BALL
             base_style.append(('BACKGROUND', (0, i), (-1, i), row_color))
             base_style.append(('BACKGROUND', (grade_col, i), (grade_col, i), grade_color))
             base_style.append(('TEXTCOLOR', (grade_col, i), (grade_col, i), colors.white))
+            # NO, ISM, BALL ustunlari ochroq daraja rangida
+            base_style.append(('BACKGROUND', (0, i), (0, i), light_grade_color))  # NO
+            base_style.append(('BACKGROUND', (2, i), (2, i), light_grade_color))  # ISM
+            base_style.append(('BACKGROUND', (3, i), (3, i), light_grade_color))  # BALL
+            base_style.append(('TEXTCOLOR', (0, i), (0, i), colors.white))
+            base_style.append(('TEXTCOLOR', (2, i), (2, i), colors.white))
+            base_style.append(('TEXTCOLOR', (3, i), (3, i), colors.white))
+            # OTM foizi ustuni daraja rangiga mos
+            base_style.append(('BACKGROUND', (otm_col, i), (otm_col, i), grade_color))
+            base_style.append(('TEXTCOLOR', (otm_col, i), (otm_col, i), colors.white))
         
         elif grade == 'A':
             # Yashil
             grade_color = colors.HexColor("#28B463")  # Green
             row_color = colors.HexColor("#ECFBEE")    # Very light green background
+            light_grade_color = colors.HexColor("#66BB6A")  # Lighter green for NO, ISM, BALL
             base_style.append(('BACKGROUND', (0, i), (-1, i), row_color))
             base_style.append(('BACKGROUND', (grade_col, i), (grade_col, i), grade_color))
             base_style.append(('TEXTCOLOR', (grade_col, i), (grade_col, i), colors.white))
+            # NO, ISM, BALL ustunlari ochroq daraja rangida
+            base_style.append(('BACKGROUND', (0, i), (0, i), light_grade_color))  # NO
+            base_style.append(('BACKGROUND', (2, i), (2, i), light_grade_color))  # ISM
+            base_style.append(('BACKGROUND', (3, i), (3, i), light_grade_color))  # BALL
+            base_style.append(('TEXTCOLOR', (0, i), (0, i), colors.white))
+            base_style.append(('TEXTCOLOR', (2, i), (2, i), colors.white))
+            base_style.append(('TEXTCOLOR', (3, i), (3, i), colors.white))
+            # OTM foizi ustuni daraja rangiga mos
+            base_style.append(('BACKGROUND', (otm_col, i), (otm_col, i), grade_color))
+            base_style.append(('TEXTCOLOR', (otm_col, i), (otm_col, i), colors.white))
         
         elif grade == 'B+':
             # To'q ko'k
             grade_color = colors.HexColor("#1A237E")  # Dark blue
             row_color = colors.HexColor("#E8EAF6")    # Light blue background
+            light_grade_color = colors.HexColor("#3F51B5")  # Lighter blue for NO, ISM, BALL
             base_style.append(('BACKGROUND', (0, i), (-1, i), row_color))
             base_style.append(('BACKGROUND', (grade_col, i), (grade_col, i), grade_color))
             base_style.append(('TEXTCOLOR', (grade_col, i), (grade_col, i), colors.white))
+            # NO, ISM, BALL ustunlari ochroq daraja rangida
+            base_style.append(('BACKGROUND', (0, i), (0, i), light_grade_color))  # NO
+            base_style.append(('BACKGROUND', (2, i), (2, i), light_grade_color))  # ISM
+            base_style.append(('BACKGROUND', (3, i), (3, i), light_grade_color))  # BALL
+            base_style.append(('TEXTCOLOR', (0, i), (0, i), colors.white))
+            base_style.append(('TEXTCOLOR', (2, i), (2, i), colors.white))
+            base_style.append(('TEXTCOLOR', (3, i), (3, i), colors.white))
+            # OTM foizi ustuni daraja rangiga mos
+            base_style.append(('BACKGROUND', (otm_col, i), (otm_col, i), grade_color))
+            base_style.append(('TEXTCOLOR', (otm_col, i), (otm_col, i), colors.white))
         
         elif grade == 'B':
             # Ko'k
             grade_color = colors.HexColor("#3498DB")  # Blue
             row_color = colors.HexColor("#E8EAF6")    # Light blue background
+            light_grade_color = colors.HexColor("#5C9BD1")  # Lighter blue for NO, ISM, BALL
             base_style.append(('BACKGROUND', (0, i), (-1, i), row_color))
             base_style.append(('BACKGROUND', (grade_col, i), (grade_col, i), grade_color))
             base_style.append(('TEXTCOLOR', (grade_col, i), (grade_col, i), colors.white))
+            # NO, ISM, BALL ustunlari ochroq daraja rangida
+            base_style.append(('BACKGROUND', (0, i), (0, i), light_grade_color))  # NO
+            base_style.append(('BACKGROUND', (2, i), (2, i), light_grade_color))  # ISM
+            base_style.append(('BACKGROUND', (3, i), (3, i), light_grade_color))  # BALL
+            base_style.append(('TEXTCOLOR', (0, i), (0, i), colors.white))
+            base_style.append(('TEXTCOLOR', (2, i), (2, i), colors.white))
+            base_style.append(('TEXTCOLOR', (3, i), (3, i), colors.white))
+            # OTM foizi ustuni daraja rangiga mos
+            base_style.append(('BACKGROUND', (otm_col, i), (otm_col, i), grade_color))
+            base_style.append(('TEXTCOLOR', (otm_col, i), (otm_col, i), colors.white))
         
         elif grade == 'C+':
             # Jigar rang
             grade_color = colors.HexColor("#8D6E63")  # Brown
             row_color = colors.HexColor("#EFEBE9")    # Light brown background
+            light_grade_color = colors.HexColor("#A1887F")  # Lighter brown for NO, ISM, BALL
             base_style.append(('BACKGROUND', (0, i), (-1, i), row_color))
             base_style.append(('BACKGROUND', (grade_col, i), (grade_col, i), grade_color))
             base_style.append(('TEXTCOLOR', (grade_col, i), (grade_col, i), colors.white))
+            # NO, ISM, BALL ustunlari ochroq daraja rangida
+            base_style.append(('BACKGROUND', (0, i), (0, i), light_grade_color))  # NO
+            base_style.append(('BACKGROUND', (2, i), (2, i), light_grade_color))  # ISM
+            base_style.append(('BACKGROUND', (3, i), (3, i), light_grade_color))  # BALL
+            base_style.append(('TEXTCOLOR', (0, i), (0, i), colors.white))
+            base_style.append(('TEXTCOLOR', (2, i), (2, i), colors.white))
+            base_style.append(('TEXTCOLOR', (3, i), (3, i), colors.white))
+            # OTM foizi ustuni daraja rangiga mos
+            base_style.append(('BACKGROUND', (otm_col, i), (otm_col, i), grade_color))
+            base_style.append(('TEXTCOLOR', (otm_col, i), (otm_col, i), colors.white))
         
         elif grade == 'C':
             # Sariq
             grade_color = colors.HexColor("#F4D03F")  # Yellow
             row_color = colors.HexColor("#FFF8E1")    # Light yellow background
+            light_grade_color = colors.HexColor("#FFEB3B")  # Lighter yellow for NO, ISM, BALL
             base_style.append(('BACKGROUND', (0, i), (-1, i), row_color))
             base_style.append(('BACKGROUND', (grade_col, i), (grade_col, i), grade_color))
             base_style.append(('TEXTCOLOR', (grade_col, i), (grade_col, i), colors.black))
+            # NO, ISM, BALL ustunlari ochroq daraja rangida
+            base_style.append(('BACKGROUND', (0, i), (0, i), light_grade_color))  # NO
+            base_style.append(('BACKGROUND', (2, i), (2, i), light_grade_color))  # ISM
+            base_style.append(('BACKGROUND', (3, i), (3, i), light_grade_color))  # BALL
+            base_style.append(('TEXTCOLOR', (0, i), (0, i), colors.black))
+            base_style.append(('TEXTCOLOR', (2, i), (2, i), colors.black))
+            base_style.append(('TEXTCOLOR', (3, i), (3, i), colors.black))
+            # OTM foizi ustuni daraja rangiga mos
+            base_style.append(('BACKGROUND', (otm_col, i), (otm_col, i), grade_color))
+            base_style.append(('TEXTCOLOR', (otm_col, i), (otm_col, i), colors.black))
         
         elif grade == 'NC':
             # Qizil
             grade_color = colors.HexColor("#E74C3C")  # Red
             row_color = colors.HexColor("#FFEBEE")    # Light red background
+            light_grade_color = colors.HexColor("#EF5350")  # Lighter red for NO, ISM, BALL
             base_style.append(('BACKGROUND', (0, i), (-1, i), row_color))
             base_style.append(('BACKGROUND', (grade_col, i), (grade_col, i), grade_color))
             base_style.append(('TEXTCOLOR', (grade_col, i), (grade_col, i), colors.white))
+            # NO, ISM, BALL ustunlari ochroq daraja rangida
+            base_style.append(('BACKGROUND', (0, i), (0, i), light_grade_color))  # NO
+            base_style.append(('BACKGROUND', (2, i), (2, i), light_grade_color))  # ISM
+            base_style.append(('BACKGROUND', (3, i), (3, i), light_grade_color))  # BALL
+            base_style.append(('TEXTCOLOR', (0, i), (0, i), colors.white))
+            base_style.append(('TEXTCOLOR', (2, i), (2, i), colors.white))
+            base_style.append(('TEXTCOLOR', (3, i), (3, i), colors.white))
+            # OTM foizi ustuni daraja rangiga mos (NC uchun 0%)
+            base_style.append(('BACKGROUND', (otm_col, i), (otm_col, i), grade_color))
+            base_style.append(('TEXTCOLOR', (otm_col, i), (otm_col, i), colors.white))
             
         else:
             # Default for any other grade
@@ -1465,22 +1566,20 @@ def prepare_pdf_for_download(results_df, title="REPETITSION TEST NATIJALARI"):
     
     # Summary information is not needed
     
-    # Add footer with contact info
-    elements.append(Spacer(1, 15*mm))
+    # Add footer with contact info - moved to bottom for better mobile viewing
+    elements.append(Spacer(1, 20*mm))  # More space before footer
     
     footer_style = ParagraphStyle(
         'Footer',
         parent=styles['Normal'],
-        fontSize=9,
-        alignment=TA_LEFT,
+        fontSize=8,  # Smaller font for footer
+        alignment=TA_CENTER,  # Center alignment for better mobile view
         fontName=base_font,
-        textColor=colors.HexColor("#666666")
+        textColor=colors.HexColor("#888888")  # Lighter color
     )
     
     footer_text = """
-    <b>Rasch Model Test Analysis</b><br/>
-    Telegram: @rasch_counter_bot<br/>
-    Yaratilgan sana: {}
+    <b>Rasch Model Test Analysis</b> | Telegram: @rasch_counter_bot | Yaratilgan: {}
     """.format(datetime.now().strftime("%d.%m.%Y"))
     
     elements.append(Paragraph(footer_text, footer_style))
