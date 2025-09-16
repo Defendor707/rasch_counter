@@ -11,6 +11,9 @@ warnings.filterwarnings('ignore')
 # Small L2 regularization to stabilize extreme estimates (MAP with N(0, sigma^2))
 REG_LAMBDA = 0.05  # increase to shrink more, decrease to shrink less
 
+# Model selection: default to 1PL per Rasch; set IRT_MODEL=2PL to enable 2PL
+IRT_MODEL = os.environ.get('IRT_MODEL', '1PL').upper()
+
 # Server quvvati optimizatsiyasi - adaptive CPU ishlatish
 NUM_CORES = os.cpu_count() or 6
 
@@ -47,10 +50,11 @@ def rasch_model(data, max_students=None):
     - data: Numpy array (qatorlar: talabalar, ustunlar: savollar), 0/1
     - max_students: Katta ma'lumotlar uchun parallel qayta ishlash cheklovi
                   
-    Returns:
+    Returns (1PL default):
     - theta: Talabalar qobiliyati (float32)
     - beta: Savollar qiyinligi (float32)
-    - a: Savollar diskriminatsiyasi (float32)
+    If 2PL enabled (IRT_MODEL=2PL):
+    - theta, beta, a
     """
     n_students, n_items = data.shape
     
@@ -128,7 +132,11 @@ def rasch_model(data, max_students=None):
     # Identifikatsiya: theta ni markazlash
     theta = theta - np.mean(theta)
     
-    return theta.astype(np.float32), beta.astype(np.float32), a.astype(np.float32)
+    if IRT_MODEL == '2PL':
+        return theta.astype(np.float32), beta.astype(np.float32), a.astype(np.float32)
+    else:
+        # 1PL (Rasch): a=1 deb faraz qilamiz, 2PL oqimini 1PL ga proyeksiya qilamiz
+        return theta.astype(np.float32), beta.astype(np.float32)
     
     # Har bir talaba uchun alohida MLE qilish
     # Bu Rasch modelining asosiy xususiyati

@@ -429,12 +429,19 @@ def process_exam_data(df, progress_callback=None):
     if n_students > 1000:
         # Server quvvatining 80% ishlatish uchun optimal chunk size
         optimal_chunk = max(n_students // MAX_WORKERS, 800)
-        ability_estimates, item_difficulties, item_discriminations = rasch_model(
+        outputs = rasch_model(
             response_data, 
             max_students=optimal_chunk
         )
     else:
-        ability_estimates, item_difficulties, item_discriminations = rasch_model(response_data)
+        outputs = rasch_model(response_data)
+
+    # 1PL vs 2PL chiqishlarini moslashtirish
+    if isinstance(outputs, tuple) and len(outputs) == 3:
+        ability_estimates, item_difficulties, item_discriminations = outputs
+    else:
+        ability_estimates, item_difficulties = outputs
+        item_discriminations = None
     
     if progress_callback:
         progress_callback(50, "Baholar hisoblanmoqda...")
