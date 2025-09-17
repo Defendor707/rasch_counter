@@ -1256,7 +1256,7 @@ def prepare_excel_for_download(results_df, data_df=None, beta_values=None, title
                     f"{df['BALL'].max():.2f}",
                     f"{df['BALL'].min():.2f}",
                     f"{df['BALL'].std():.2f}",
-                    f"{(df['OTM FOIZI'] >= 60).mean() * 100:.2f}%",
+                    f"{(df['BALL'] >= 60).mean() * 100:.2f}%",
                     f"{(df['DARAJA'] == 'A+').mean() * 100:.2f}%",
                     f"{(df['DARAJA'] == 'A').mean() * 100:.2f}%",
                     f"{(df['DARAJA'] == 'B+').mean() * 100:.2f}%",
