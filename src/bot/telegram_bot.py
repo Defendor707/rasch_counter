@@ -140,7 +140,7 @@ def main():
         return
     
     # Webhook configuration
-    use_webhook = bool(TELEGRAM_WEBHOOK_HOST and TELEGRAM_CERT_FILE and TELEGRAM_KEY_FILE)
+    use_webhook = False  # Use polling mode for local development
     
     # Get the telegram token
     if not TELEGRAM_TOKEN:
