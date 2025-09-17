@@ -1140,25 +1140,14 @@ def prepare_excel_for_download(results_df, data_df=None, beta_values=None, title
     # Add Rank column - always ensure proper sequential ranking
     df['NO'] = range(1, len(df) + 1)
     
-    # Add OTM percentage column like in PDF
-    if 'Standard Score' in df.columns:
-        # Calculate OTM percentage based on Standard Score
-        max_score = df['Standard Score'].max()
-        min_score = df['Standard Score'].min()
-        
-        if max_score != min_score:
-            # Normalize to 0-100 scale
-            df['OTM FOIZI'] = ((df['Standard Score'] - min_score) / (max_score - min_score) * 100).round(2)
-        else:
-            df['OTM FOIZI'] = 100.0
-    else:
-        df['OTM FOIZI'] = 0.0
+    # OTM percentage column removed as per user request - only basic columns needed
     
-    # Rename columns to match PDF format
+    # Rename columns to match required format
     column_mapping = {
         'Student ID': 'ISM FAMILIYA',
         'Raw Score': 'BALL',
-        'Grade': 'DARAJA'
+        'Grade': 'DARAJA',
+        'Ability': 'ABILITY'
     }
     
     # Apply column renaming
@@ -1166,31 +1155,23 @@ def prepare_excel_for_download(results_df, data_df=None, beta_values=None, title
         if old_name in df.columns:
             df = df.rename(columns={old_name: new_name})
     
-    # Reorder columns to match PDF format: NO, ISM FAMILIYA, BALL, DARAJA, OTM FOIZI
-    cols = df.columns.tolist()
-    
-    # Create new column order
-    new_cols = []
+    # Keep only required columns: NO, ISM FAMILIYA, ABILITY, BALL, DARAJA
+    required_cols = []
     
     # Add columns in the correct order
-    if 'NO' in cols:
-        new_cols.append('NO')
-    if 'ISM FAMILIYA' in cols:
-        new_cols.append('ISM FAMILIYA')
-    if 'BALL' in cols:
-        new_cols.append('BALL')
-    if 'DARAJA' in cols:
-        new_cols.append('DARAJA')
-    if 'OTM FOIZI' in cols:
-        new_cols.append('OTM FOIZI')
+    if 'NO' in df.columns:
+        required_cols.append('NO')
+    if 'ISM FAMILIYA' in df.columns:
+        required_cols.append('ISM FAMILIYA')
+    if 'ABILITY' in df.columns:
+        required_cols.append('ABILITY')
+    if 'BALL' in df.columns:
+        required_cols.append('BALL')
+    if 'DARAJA' in df.columns:
+        required_cols.append('DARAJA')
     
-    # Add other columns if they exist
-    for col in cols:
-        if col not in new_cols:
-            new_cols.append(col)
-    
-    # Apply new column order
-    df = df[new_cols]
+    # Keep only required columns
+    df = df[required_cols]
     
     # Create a BytesIO object
     excel_data = io.BytesIO()
@@ -1246,9 +1227,9 @@ def prepare_excel_for_download(results_df, data_df=None, beta_values=None, title
         # Set column widths
         worksheet.set_column('A:A', 6)   # NO
         worksheet.set_column('B:B', 30)  # ISM FAMILIYA
-        worksheet.set_column('C:C', 10)  # BALL
-        worksheet.set_column('D:D', 8)   # DARAJA
-        worksheet.set_column('E:E', 12)  # OTM FOIZI
+        worksheet.set_column('C:C', 12)  # ABILITY
+        worksheet.set_column('D:D', 10)  # BALL
+        worksheet.set_column('E:E', 8)   # DARAJA
         
         # Add statistics sheet like in PDF
         if data_df is not None and beta_values is not None:
