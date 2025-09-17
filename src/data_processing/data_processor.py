@@ -1205,31 +1205,44 @@ def prepare_excel_for_download(results_df, data_df=None, beta_values=None, title
             'NC': workbook.add_format({'bg_color': '#E74C3C', 'font_color': 'white', 'border': 1})   # Red
         }
         
-        # Write the main results sheet with formatting
-        df.to_excel(writer, sheet_name='Natijalar', index=False)
-        
-        # Get the worksheet object
-        worksheet = writer.sheets['Natijalar']
-        
-        # Format the header row
+        # Create worksheet manually to control formats
+        worksheet = workbook.add_worksheet('Natijalar')
+
+        # Define separate numeric formats (2 decimals) for grade-colored rows
+        grade_formats_numeric = {
+            'A+': workbook.add_format({'bg_color': '#006400', 'font_color': 'white', 'border': 1, 'num_format': '0.00'}),
+            'A': workbook.add_format({'bg_color': '#28B463', 'font_color': 'white', 'border': 1, 'num_format': '0.00'}),
+            'B+': workbook.add_format({'bg_color': '#1A237E', 'font_color': 'white', 'border': 1, 'num_format': '0.00'}),
+            'B': workbook.add_format({'bg_color': '#3498DB', 'font_color': 'white', 'border': 1, 'num_format': '0.00'}),
+            'C+': workbook.add_format({'bg_color': '#8D6E63', 'font_color': 'white', 'border': 1, 'num_format': '0.00'}),
+            'C': workbook.add_format({'bg_color': '#F4D03F', 'font_color': 'black', 'border': 1, 'num_format': '0.00'}),
+            'NC': workbook.add_format({'bg_color': '#E74C3C', 'font_color': 'white', 'border': 1, 'num_format': '0.00'})
+        }
+
+        # Write header row
         for col_num, value in enumerate(df.columns.values):
             worksheet.write(0, col_num, value, header_format)
-        
-        # Apply formatting to each row based on grade (all columns same color)
+
+        # Write all rows manually with correct formatting
         if 'DARAJA' in df.columns:
-            grade_col = df.columns.get_loc('DARAJA')
-            
-            for row_num, row_data in enumerate(df.values):
+            for row_num in range(len(df)):
                 grade = df.iloc[row_num]['DARAJA']
-                
-                if grade in grade_formats:
-                    # Apply same color to all columns in the row
-                    for col_num in range(len(df.columns)):
-                        cell_value = df.iloc[row_num, col_num]
-                        # Format BALL and ABILITY columns to 2 decimal places (e.g., 12.34, 2.49)
-                        if df.columns[col_num] in ['BALL', 'ABILITY'] and isinstance(cell_value, (int, float)):
-                            cell_value = f"{float(cell_value):.2f}"
-                        worksheet.write(row_num+1, col_num, cell_value, grade_formats[grade])
+                row_format_map = grade_formats.get(grade, None)
+                row_format_map_numeric = grade_formats_numeric.get(grade, None)
+
+                for col_num in range(len(df.columns)):
+                    col_name = df.columns[col_num]
+                    cell_value = df.iloc[row_num, col_num]
+
+                    # Determine if value is numeric (handle NumPy numeric types too)
+                    is_numeric = isinstance(cell_value, (int, float, np.integer, np.floating))
+
+                    if col_name in ['BALL', 'ABILITY'] and is_numeric:
+                        # Write as numeric with 2-decimal format and grade color
+                        worksheet.write(row_num + 1, col_num, float(cell_value), row_format_map_numeric)
+                    else:
+                        # Write other columns with grade color format
+                        worksheet.write(row_num + 1, col_num, cell_value, row_format_map)
         
         # Set column widths
         worksheet.set_column('A:A', 6)   # NO
