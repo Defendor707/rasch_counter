@@ -18,7 +18,7 @@ from pathlib import Path
 src_dir = Path(__file__).parent.parent
 sys.path.insert(0, str(src_dir))
 
-from data_processing.data_processor import process_exam_data, prepare_excel_for_download, prepare_pdf_for_download, prepare_simplified_excel
+from data_processing.data_processor import process_exam_data, prepare_excel_for_download, prepare_pdf_for_download, prepare_simplified_excel, prepare_statistics_pdf
 from utils.utils import display_grade_distribution, calculate_statistics
 from models.rasch_model import rasch_model, ability_to_grade, ability_to_standard_score
 from config.settings import GRADE_DESCRIPTIONS
@@ -717,10 +717,12 @@ def main():
             btn_all_results = types.InlineKeyboardButton('📊 Barcha Natijalar va Grafiklar', callback_data='all_results')
             btn_excel = types.InlineKeyboardButton('💾 Excel formatda yuklash', callback_data='download_excel')
             btn_pdf = types.InlineKeyboardButton('📑 PDF formatda yuklash', callback_data='download_pdf')
+            btn_stats_pdf = types.InlineKeyboardButton('📈 Statistika (PDF)', callback_data='download_stats_pdf')
             btn_simple_excel = types.InlineKeyboardButton('📝 Nazorat Ballari', callback_data='download_simple_excel')
             
             markup.add(btn_all_results)
             markup.add(btn_excel, btn_pdf)
+            markup.add(btn_stats_pdf)
             markup.add(btn_simple_excel)
             
             # Emojilar bilan ma'noli javob
@@ -906,10 +908,12 @@ def main():
             btn_all_results = types.InlineKeyboardButton('📊 Barcha Natijalar va Grafiklar', callback_data='all_results')
             btn_excel = types.InlineKeyboardButton('💾 Excel formatda yuklash', callback_data='download_excel')
             btn_pdf = types.InlineKeyboardButton('📑 PDF formatda yuklash', callback_data='download_pdf')
+            btn_stats_pdf = types.InlineKeyboardButton('📈 Statistika (PDF)', callback_data='download_stats_pdf')
             btn_simple_excel = types.InlineKeyboardButton('📝 Nazorat Ballari', callback_data='download_simple_excel')
             
             markup.add(btn_all_results)
             markup.add(btn_excel, btn_pdf)
+            markup.add(btn_stats_pdf)
             markup.add(btn_simple_excel)
             
             # A+/A baholar soni uchun
@@ -1220,9 +1224,11 @@ def main():
             btn_back = types.InlineKeyboardButton('⬅️ Orqaga', callback_data='back_to_menu')
             btn_excel = types.InlineKeyboardButton('💾 Excel formatda yuklash', callback_data='download_excel')
             btn_pdf = types.InlineKeyboardButton('📑 PDF formatda yuklash', callback_data='download_pdf')
+            btn_stats_pdf = types.InlineKeyboardButton('📈 Statistika (PDF)', callback_data='download_stats_pdf')
             btn_simple_excel = types.InlineKeyboardButton('📝 Nazorat Ballari', callback_data='download_simple_excel')
             
             new_markup.add(btn_back)
+            new_markup.add(btn_stats_pdf)
             new_markup.add(btn_excel, btn_pdf)
             new_markup.add(btn_simple_excel)
             
@@ -1261,9 +1267,11 @@ def main():
             btn_back = types.InlineKeyboardButton('⬅️ Orqaga', callback_data='back_to_menu')
             btn_excel = types.InlineKeyboardButton('💾 Excel formatda yuklash', callback_data='download_excel')
             btn_pdf = types.InlineKeyboardButton('📑 PDF formatda yuklash', callback_data='download_pdf')
+            btn_stats_pdf = types.InlineKeyboardButton('📈 Statistika (PDF)', callback_data='download_stats_pdf')
             btn_simple_excel = types.InlineKeyboardButton('📝 Nazorat Ballari', callback_data='download_simple_excel')
             
             new_markup.add(btn_back)
+            new_markup.add(btn_stats_pdf)
             new_markup.add(btn_excel, btn_pdf)
             new_markup.add(btn_simple_excel)
             
@@ -1305,6 +1313,41 @@ def main():
                 chat_id=call.message.chat.id,
                 message_id=call.message.message_id,
                 text="✅ PDF fayli yuborildi!\n\n💡 Ushbu PDF faylda:\n- 🔸 Chiroyli formatlangan natijalar jadvali\n- 🔸 Har bir talabaning balllari va DTM foizi\n- 🔸 Darajalar bo'yicha ranglar bilan ajratilgan baholar",
+                reply_markup=new_markup
+            )
+        
+        elif call.data == "download_stats_pdf":
+            # Build and send statistics-only PDF (charts and summary)
+            user_info = user_data.get(user_id, {})
+            ability_estimates = user_info.get('ability_estimates')
+            grade_counts = user_info.get('grade_counts', {})
+            data_df = user_info.get('data_df')
+            beta_values = user_info.get('beta_values')
+            stats_pdf = prepare_statistics_pdf(results_df, grade_counts, ability_estimates, data_df, beta_values, title="STATISTIKA")
+
+            bot.send_document(
+                chat_id=call.message.chat.id,
+                document=stats_pdf,
+                visible_file_name="statistika.pdf",
+                caption="📈 Statistika va grafiklar (PDF)."
+            )
+
+            # After sending, offer other options
+            new_markup = types.InlineKeyboardMarkup(row_width=2)
+            btn_back = types.InlineKeyboardButton('⬅️ Orqaga', callback_data='back_to_menu')
+            btn_excel = types.InlineKeyboardButton('💾 Excel formatda yuklash', callback_data='download_excel')
+            btn_pdf = types.InlineKeyboardButton('📑 PDF formatda yuklash', callback_data='download_pdf')
+            btn_stats_pdf = types.InlineKeyboardButton('📈 Statistika (PDF)', callback_data='download_stats_pdf')
+            btn_simple_excel = types.InlineKeyboardButton('📝 Nazorat Ballari', callback_data='download_simple_excel')
+            new_markup.add(btn_back)
+            new_markup.add(btn_excel, btn_pdf)
+            new_markup.add(btn_stats_pdf)
+            new_markup.add(btn_simple_excel)
+
+            bot.edit_message_text(
+                chat_id=call.message.chat.id,
+                message_id=call.message.message_id,
+                text="✅ Statistika PDF yuborildi!",
                 reply_markup=new_markup
             )
             

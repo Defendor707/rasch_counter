@@ -1546,3 +1546,115 @@ def prepare_pdf_for_download(results_df, title="REPETITSION TEST NATIJALARI"):
         doc.build(elements)
         pdf_data.seek(0)
         return pdf_data
+
+
+def prepare_statistics_pdf(results_df, grade_counts, ability_estimates, data_df=None, beta_values=None, title="STATISTIKA"):
+    """
+    Build a PDF containing statistics and charts (grade distribution, ability distribution).
+    """
+    from reportlab.lib.units import mm
+    from reportlab.platypus import Image
+    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+    from reportlab.lib.enums import TA_CENTER
+    import matplotlib
+    matplotlib.use('Agg')
+    import matplotlib.pyplot as plt
+    import io as _io
+
+    pdf_data = io.BytesIO()
+
+    # Document
+    doc = SimpleDocTemplate(
+        pdf_data,
+        pagesize=landscape(A4),
+        rightMargin=10*mm,
+        leftMargin=10*mm,
+        topMargin=15*mm,
+        bottomMargin=15*mm,
+        title=title
+    )
+
+    styles = getSampleStyleSheet()
+    title_style = ParagraphStyle(
+        'StatsTitle', parent=styles['Heading1'], fontSize=16, alignment=TA_CENTER,
+        spaceAfter=10, textColor=colors.HexColor("#1F497D")
+    )
+
+    elements = []
+    elements.append(Paragraph(title, title_style))
+    elements.append(Spacer(1, 6*mm))
+
+    # Summary stats table
+    try:
+        total_students = len(results_df)
+        avg_std = float(results_df['Standard Score'].mean()) if 'Standard Score' in results_df.columns else 0.0
+        avg_raw = float(results_df['Raw Score'].mean()) if 'Raw Score' in results_df.columns else 0.0
+        passing = total_students - int(grade_counts.get('NC', 0))
+        pass_rate = (passing / total_students * 100.0) if total_students > 0 else 0.0
+
+        table_data = [["Ko'rsatkich", "Qiymat"],
+                      ["Jami talabalar soni", f"{total_students}"],
+                      ["O'rtacha standart ball", f"{avg_std:.2f}"],
+                      ["O'rtacha xom ball", f"{avg_raw:.2f}"],
+                      ["O'tish foizi", f"{pass_rate:.2f}%"]]
+
+        t = Table(table_data, colWidths=[70*mm, 40*mm])
+        t.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#4472C4')),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+            ('GRID', (0, 0), (-1, -1), 0.5, colors.black),
+        ]))
+        elements.append(t)
+    except Exception:
+        pass
+
+    elements.append(Spacer(1, 6*mm))
+
+    # Grade distribution chart
+    try:
+        grade_order = ['A+', 'A', 'B+', 'B', 'C+', 'C', 'NC']
+        counts = [int(grade_counts.get(g, 0)) for g in grade_order]
+        if sum(counts) > 0:
+            fig, ax = plt.subplots(figsize=(6, 3))
+            bars = ax.bar(grade_order, counts, color=['#1E8449', '#28B463', '#58D68D', '#3498DB', '#5DADE2', '#F4D03F', '#E67E22'])
+            ax.set_title('Baholar taqsimoti')
+            ax.set_xlabel('Baho')
+            ax.set_ylabel('Talabalar soni')
+            for b in bars:
+                ax.text(b.get_x()+b.get_width()/2, b.get_height(), str(int(b.get_height())), ha='center', va='bottom', fontsize=8)
+            buf = _io.BytesIO()
+            plt.tight_layout()
+            fig.savefig(buf, format='png', dpi=150)
+            plt.close(fig)
+            buf.seek(0)
+            elements.append(Image(buf, width=160*mm, height=80*mm))
+            elements.append(Spacer(1, 4*mm))
+    except Exception:
+        pass
+
+    # Ability distribution chart
+    try:
+        if ability_estimates is not None and len(ability_estimates) > 0:
+            abilities = np.array(ability_estimates, dtype=float)
+            fig, ax = plt.subplots(figsize=(6, 3))
+            ax.hist(abilities, bins=20, color='#3498DB', edgecolor='white')
+            ax.set_title('Qobiliyat (Theta) taqsimoti')
+            ax.set_xlabel('Theta')
+            ax.set_ylabel('Talabalar soni')
+            buf = _io.BytesIO()
+            plt.tight_layout()
+            fig.savefig(buf, format='png', dpi=150)
+            plt.close(fig)
+            buf.seek(0)
+            elements.append(Image(buf, width=160*mm, height=80*mm))
+            elements.append(Spacer(1, 4*mm))
+    except Exception:
+        pass
+
+    # Build PDF
+    doc.build(elements)
+    pdf_data.seek(0)
+    return pdf_data
+
