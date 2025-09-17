@@ -961,6 +961,17 @@ def main():
                                visible_file_name="tahlil_va_maslahatlar.pdf",
                                caption="📈 Tahlil, fit diagnostika va maslahatlar (PDF)")
 
+            # Darajalar bo'yicha qisqa xabar
+            total_students = len(results_df)
+            grade_order = ['A+', 'A', 'B+', 'B', 'C+', 'C', 'NC']
+            lines = ["📑 Darajalar taqsimoti:"]
+            for g in grade_order:
+                c = grade_counts.get(g, 0)
+                pct = (c/total_students*100) if total_students > 0 else 0
+                if c > 0:
+                    lines.append(f"{g}: {c} ta ({pct:.2f}%)")
+            bot.send_message(chat_id=call.message.chat.id, text="\n".join(lines))
+
             new_markup = types.InlineKeyboardMarkup(row_width=2)
             btn_back = types.InlineKeyboardButton('⬅️ Orqaga', callback_data='back_to_menu')
             btn_excel = types.InlineKeyboardButton('💾 Excel formatda yuklash', callback_data='download_excel')

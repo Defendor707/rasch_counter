@@ -35,6 +35,10 @@ def compute_advanced_insights(results_df: pd.DataFrame, data_df: pd.DataFrame | 
         expected = 1.0/(1.0 + np.exp(betas))
         residual = np.array(correctness) - expected
         insights['question_fit'] = list(zip(range(1, len(residual)+1), betas.tolist(), residual.tolist()))
+        insights['question_summary'] = [
+            (int(i+1), float(betas[i]), float(correctness[i]*100.0), float(residual[i]))
+            for i in range(len(correctness))
+        ]
         # Top problematic (mismatch) and ideal (residual ~ 0)
         if len(residual) > 0:
             order = np.argsort(np.abs(residual))
@@ -114,6 +118,41 @@ def build_insights_pdf(results_df: pd.DataFrame,
         for t in tips:
             elements.append(Paragraph(f"• {t}", normal))
         elements.append(Spacer(1, 4*mm))
+
+    # Question percent-correct chart
+    if insights.get('question_summary'):
+        elements.append(Paragraph("Savollar bo'yicha to'g'ri javoblar (%)", h2))
+        buf = _io.BytesIO()
+        fig, ax = plt.subplots(figsize=(7, 3))
+        qs = [q for q, b, pc, r in insights['question_summary']]
+        pcs = [pc for q, b, pc, r in insights['question_summary']]
+        ax.bar(qs, pcs, color='#2E7D32')
+        ax.set_xlabel('Savol #')
+        ax.set_ylabel('To\'g\'ri (%)')
+        ax.set_ylim(0, 100)
+        plt.tight_layout()
+        fig.savefig(buf, format='png', dpi=150)
+        plt.close(fig)
+        buf.seek(0)
+        elements.append(Image(buf, width=180*mm, height=75*mm))
+        elements.append(Spacer(1, 4*mm))
+
+    # Question summary table (top 15 by absolute residual)
+    if insights.get('question_summary'):
+        elements.append(Paragraph("Savollar bo'yicha ko'rsatkichlar (Top 15 reziduala ko'ra)", h2))
+        sorted_q = sorted(insights['question_summary'], key=lambda x: abs(x[3]), reverse=True)[:15]
+        rows = [["Savol", "Qiyinlik (β)", "To'g'ri (%)", "Rezidual"]]
+        for q, b, pc, r in sorted_q:
+            rows.append([f"Q{q}", f"{b:.2f}", f"{pc:.1f}", f"{r:.2f}"])
+        t2 = Table(rows, colWidths=[25*mm, 40*mm, 35*mm, 30*mm])
+        t2.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#4472C4')),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+            ('GRID', (0, 0), (-1, -1), 0.5, colors.black),
+        ]))
+        elements.append(t2)
 
     # Student-level insights
     elements.append(Paragraph("Talabalar bo'yicha kuzatuvlar", h2))
