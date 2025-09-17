@@ -19,6 +19,7 @@ src_dir = Path(__file__).parent.parent
 sys.path.insert(0, str(src_dir))
 
 from data_processing.data_processor import process_exam_data, prepare_excel_for_download, prepare_pdf_for_download, prepare_simplified_excel, prepare_statistics_pdf
+from data_processing.insights import compute_advanced_insights, build_insights_pdf
 from utils.utils import display_grade_distribution, calculate_statistics
 from models.rasch_model import rasch_model, ability_to_grade, ability_to_standard_score
 from config.settings import GRADE_DESCRIPTIONS
@@ -947,20 +948,18 @@ def main():
             )
             
         elif call.data == "all_results":
-            # Statistika.xlsx o'rniga PDF qaytaramiz
+            # Kengaytirilgan tahlil va maslahatlar bilan PDF
             user_info = user_data.get(user_id, {})
             ability_estimates = user_info.get('ability_estimates')
             grade_counts = user_info.get('grade_counts', {})
             data_df = user_info.get('data_df')
             beta_values = user_info.get('beta_values')
-            stats_pdf = prepare_statistics_pdf(results_df, grade_counts, ability_estimates, data_df, beta_values, title="STATISTIKA")
+            adv = compute_advanced_insights(results_df, data_df, beta_values)
+            stats_pdf = build_insights_pdf(results_df, adv, title="TAHLIL VA MASLAHATLAR")
 
-            bot.send_document(
-                chat_id=call.message.chat.id,
-                document=stats_pdf,
-                visible_file_name="statistika.pdf",
-                caption="📈 Statistika va grafiklar (PDF)."
-            )
+            bot.send_document(chat_id=call.message.chat.id, document=stats_pdf,
+                               visible_file_name="tahlil_va_maslahatlar.pdf",
+                               caption="📈 Tahlil, fit diagnostika va maslahatlar (PDF)")
 
             new_markup = types.InlineKeyboardMarkup(row_width=2)
             btn_back = types.InlineKeyboardButton('⬅️ Orqaga', callback_data='back_to_menu')
