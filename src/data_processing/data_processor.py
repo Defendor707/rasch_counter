@@ -1197,12 +1197,8 @@ def prepare_excel_for_download(results_df, data_df=None, beta_values=None, title
     
     # Create a Pandas Excel writer using the BytesIO object
     with pd.ExcelWriter(excel_data, engine='xlsxwriter') as writer:
-        # Write the main results sheet
-        df.to_excel(writer, sheet_name='Natijalar', index=False)
-        
-        # Get the workbook and worksheet objects
+        # Get the workbook object first
         workbook = writer.book
-        worksheet = writer.sheets['Natijalar']
         
         # Define cell formats for different grades
         header_format = workbook.add_format({
@@ -1225,20 +1221,27 @@ def prepare_excel_for_download(results_df, data_df=None, beta_values=None, title
             'NC': workbook.add_format({'bg_color': '#E74C3C', 'font_color': 'white', 'border': 1})   # Red
         }
         
+        # Write the main results sheet with formatting
+        df.to_excel(writer, sheet_name='Natijalar', index=False)
+        
+        # Get the worksheet object
+        worksheet = writer.sheets['Natijalar']
+        
         # Format the header row
         for col_num, value in enumerate(df.columns.values):
             worksheet.write(0, col_num, value, header_format)
         
         # Apply formatting to each row based on grade (all columns same color)
-        grade_col = df.columns.get_loc('DARAJA')
-        
-        for row_num, row_data in enumerate(df.values):
-            grade = df.iloc[row_num]['DARAJA']
+        if 'DARAJA' in df.columns:
+            grade_col = df.columns.get_loc('DARAJA')
             
-            if grade in grade_formats:
-                # Apply same color to all columns in the row
-                for col_num in range(len(df.columns)):
-                    worksheet.write(row_num+1, col_num, df.iloc[row_num, col_num], grade_formats[grade])
+            for row_num, row_data in enumerate(df.values):
+                grade = df.iloc[row_num]['DARAJA']
+                
+                if grade in grade_formats:
+                    # Apply same color to all columns in the row
+                    for col_num in range(len(df.columns)):
+                        worksheet.write(row_num+1, col_num, df.iloc[row_num, col_num], grade_formats[grade])
         
         # Set column widths
         worksheet.set_column('A:A', 6)   # NO
