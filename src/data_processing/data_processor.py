@@ -1415,137 +1415,46 @@ def prepare_pdf_for_download(results_df, title="REPETITSION TEST NATIJALARI"):
         
         # Define colors for grades and rows (per user request)
         if grade == 'A+':
-            # To'q yashil
+            # To'q yashil - barcha ustunlar bir xil rangda
             grade_color = colors.HexColor("#006400")  # Dark green
-            row_color = colors.HexColor("#E8F5E9")    # Light green background
-            light_grade_color = colors.HexColor("#4CAF50")  # Lighter green for NO, ISM, BALL
-            base_style.append(('BACKGROUND', (0, i), (-1, i), row_color))
-            base_style.append(('BACKGROUND', (grade_col, i), (grade_col, i), grade_color))
-            base_style.append(('TEXTCOLOR', (grade_col, i), (grade_col, i), colors.white))
-            # NO, ISM, BALL ustunlari ochroq daraja rangida
-            base_style.append(('BACKGROUND', (0, i), (0, i), light_grade_color))  # NO
-            base_style.append(('BACKGROUND', (1, i), (1, i), light_grade_color))  # ISM
-            base_style.append(('BACKGROUND', (2, i), (2, i), light_grade_color))  # BALL
-            base_style.append(('TEXTCOLOR', (0, i), (0, i), colors.white))
-            base_style.append(('TEXTCOLOR', (1, i), (1, i), colors.white))
-            base_style.append(('TEXTCOLOR', (2, i), (2, i), colors.white))
-            # OTM foizi ustuni daraja rangiga mos
-            base_style.append(('BACKGROUND', (otm_col, i), (otm_col, i), grade_color))
-            base_style.append(('TEXTCOLOR', (otm_col, i), (otm_col, i), colors.white))
+            base_style.append(('BACKGROUND', (0, i), (-1, i), grade_color))  # Barcha ustunlar bir xil rangda
+            base_style.append(('TEXTCOLOR', (0, i), (-1, i), colors.white))  # Barcha matn oq rangda
         
         elif grade == 'A':
-            # Yashil
+            # Yashil - barcha ustunlar bir xil rangda
             grade_color = colors.HexColor("#28B463")  # Green
-            row_color = colors.HexColor("#ECFBEE")    # Very light green background
-            light_grade_color = colors.HexColor("#66BB6A")  # Lighter green for NO, ISM, BALL
-            base_style.append(('BACKGROUND', (0, i), (-1, i), row_color))
-            base_style.append(('BACKGROUND', (grade_col, i), (grade_col, i), grade_color))
-            base_style.append(('TEXTCOLOR', (grade_col, i), (grade_col, i), colors.white))
-            # NO, ISM, BALL ustunlari ochroq daraja rangida
-            base_style.append(('BACKGROUND', (0, i), (0, i), light_grade_color))  # NO
-            base_style.append(('BACKGROUND', (1, i), (1, i), light_grade_color))  # ISM
-            base_style.append(('BACKGROUND', (2, i), (2, i), light_grade_color))  # BALL
-            base_style.append(('TEXTCOLOR', (0, i), (0, i), colors.white))
-            base_style.append(('TEXTCOLOR', (1, i), (1, i), colors.white))
-            base_style.append(('TEXTCOLOR', (2, i), (2, i), colors.white))
-            # OTM foizi ustuni daraja rangiga mos
-            base_style.append(('BACKGROUND', (otm_col, i), (otm_col, i), grade_color))
-            base_style.append(('TEXTCOLOR', (otm_col, i), (otm_col, i), colors.white))
+            base_style.append(('BACKGROUND', (0, i), (-1, i), grade_color))  # Barcha ustunlar bir xil rangda
+            base_style.append(('TEXTCOLOR', (0, i), (-1, i), colors.white))  # Barcha matn oq rangda
         
         elif grade == 'B+':
-            # To'q ko'k
+            # To'q ko'k - barcha ustunlar bir xil rangda
             grade_color = colors.HexColor("#1A237E")  # Dark blue
-            row_color = colors.HexColor("#E8EAF6")    # Light blue background
-            light_grade_color = colors.HexColor("#3F51B5")  # Lighter blue for NO, ISM, BALL
-            base_style.append(('BACKGROUND', (0, i), (-1, i), row_color))
-            base_style.append(('BACKGROUND', (grade_col, i), (grade_col, i), grade_color))
-            base_style.append(('TEXTCOLOR', (grade_col, i), (grade_col, i), colors.white))
-            # NO, ISM, BALL ustunlari ochroq daraja rangida
-            base_style.append(('BACKGROUND', (0, i), (0, i), light_grade_color))  # NO
-            base_style.append(('BACKGROUND', (1, i), (1, i), light_grade_color))  # ISM
-            base_style.append(('BACKGROUND', (2, i), (2, i), light_grade_color))  # BALL
-            base_style.append(('TEXTCOLOR', (0, i), (0, i), colors.white))
-            base_style.append(('TEXTCOLOR', (1, i), (1, i), colors.white))
-            base_style.append(('TEXTCOLOR', (2, i), (2, i), colors.white))
-            # OTM foizi ustuni daraja rangiga mos
-            base_style.append(('BACKGROUND', (otm_col, i), (otm_col, i), grade_color))
-            base_style.append(('TEXTCOLOR', (otm_col, i), (otm_col, i), colors.white))
+            base_style.append(('BACKGROUND', (0, i), (-1, i), grade_color))  # Barcha ustunlar bir xil rangda
+            base_style.append(('TEXTCOLOR', (0, i), (-1, i), colors.white))  # Barcha matn oq rangda
         
         elif grade == 'B':
-            # Ko'k
+            # Ko'k - barcha ustunlar bir xil rangda
             grade_color = colors.HexColor("#3498DB")  # Blue
-            row_color = colors.HexColor("#E8EAF6")    # Light blue background
-            light_grade_color = colors.HexColor("#5C9BD1")  # Lighter blue for NO, ISM, BALL
-            base_style.append(('BACKGROUND', (0, i), (-1, i), row_color))
-            base_style.append(('BACKGROUND', (grade_col, i), (grade_col, i), grade_color))
-            base_style.append(('TEXTCOLOR', (grade_col, i), (grade_col, i), colors.white))
-            # NO, ISM, BALL ustunlari ochroq daraja rangida
-            base_style.append(('BACKGROUND', (0, i), (0, i), light_grade_color))  # NO
-            base_style.append(('BACKGROUND', (1, i), (1, i), light_grade_color))  # ISM
-            base_style.append(('BACKGROUND', (2, i), (2, i), light_grade_color))  # BALL
-            base_style.append(('TEXTCOLOR', (0, i), (0, i), colors.white))
-            base_style.append(('TEXTCOLOR', (1, i), (1, i), colors.white))
-            base_style.append(('TEXTCOLOR', (2, i), (2, i), colors.white))
-            # OTM foizi ustuni daraja rangiga mos
-            base_style.append(('BACKGROUND', (otm_col, i), (otm_col, i), grade_color))
-            base_style.append(('TEXTCOLOR', (otm_col, i), (otm_col, i), colors.white))
+            base_style.append(('BACKGROUND', (0, i), (-1, i), grade_color))  # Barcha ustunlar bir xil rangda
+            base_style.append(('TEXTCOLOR', (0, i), (-1, i), colors.white))  # Barcha matn oq rangda
         
         elif grade == 'C+':
-            # Jigar rang
+            # Jigar rang - barcha ustunlar bir xil rangda
             grade_color = colors.HexColor("#8D6E63")  # Brown
-            row_color = colors.HexColor("#EFEBE9")    # Light brown background
-            light_grade_color = colors.HexColor("#A1887F")  # Lighter brown for NO, ISM, BALL
-            base_style.append(('BACKGROUND', (0, i), (-1, i), row_color))
-            base_style.append(('BACKGROUND', (grade_col, i), (grade_col, i), grade_color))
-            base_style.append(('TEXTCOLOR', (grade_col, i), (grade_col, i), colors.white))
-            # NO, ISM, BALL ustunlari ochroq daraja rangida
-            base_style.append(('BACKGROUND', (0, i), (0, i), light_grade_color))  # NO
-            base_style.append(('BACKGROUND', (1, i), (1, i), light_grade_color))  # ISM
-            base_style.append(('BACKGROUND', (2, i), (2, i), light_grade_color))  # BALL
-            base_style.append(('TEXTCOLOR', (0, i), (0, i), colors.white))
-            base_style.append(('TEXTCOLOR', (1, i), (1, i), colors.white))
-            base_style.append(('TEXTCOLOR', (2, i), (2, i), colors.white))
-            # OTM foizi ustuni daraja rangiga mos
-            base_style.append(('BACKGROUND', (otm_col, i), (otm_col, i), grade_color))
-            base_style.append(('TEXTCOLOR', (otm_col, i), (otm_col, i), colors.white))
+            base_style.append(('BACKGROUND', (0, i), (-1, i), grade_color))  # Barcha ustunlar bir xil rangda
+            base_style.append(('TEXTCOLOR', (0, i), (-1, i), colors.white))  # Barcha matn oq rangda
         
         elif grade == 'C':
-            # Sariq
+            # Sariq - barcha ustunlar bir xil rangda
             grade_color = colors.HexColor("#F4D03F")  # Yellow
-            row_color = colors.HexColor("#FFF8E1")    # Light yellow background
-            light_grade_color = colors.HexColor("#FFEB3B")  # Lighter yellow for NO, ISM, BALL
-            base_style.append(('BACKGROUND', (0, i), (-1, i), row_color))
-            base_style.append(('BACKGROUND', (grade_col, i), (grade_col, i), grade_color))
-            base_style.append(('TEXTCOLOR', (grade_col, i), (grade_col, i), colors.black))
-            # NO, ISM, BALL ustunlari ochroq daraja rangida
-            base_style.append(('BACKGROUND', (0, i), (0, i), light_grade_color))  # NO
-            base_style.append(('BACKGROUND', (2, i), (2, i), light_grade_color))  # ISM
-            base_style.append(('BACKGROUND', (3, i), (3, i), light_grade_color))  # BALL
-            base_style.append(('TEXTCOLOR', (0, i), (0, i), colors.black))
-            base_style.append(('TEXTCOLOR', (2, i), (2, i), colors.black))
-            base_style.append(('TEXTCOLOR', (3, i), (3, i), colors.black))
-            # OTM foizi ustuni daraja rangiga mos
-            base_style.append(('BACKGROUND', (otm_col, i), (otm_col, i), grade_color))
-            base_style.append(('TEXTCOLOR', (otm_col, i), (otm_col, i), colors.black))
+            base_style.append(('BACKGROUND', (0, i), (-1, i), grade_color))  # Barcha ustunlar bir xil rangda
+            base_style.append(('TEXTCOLOR', (0, i), (-1, i), colors.black))  # Sariq rangda qora matn
         
         elif grade == 'NC':
-            # Qizil
+            # Qizil - barcha ustunlar bir xil rangda
             grade_color = colors.HexColor("#E74C3C")  # Red
-            row_color = colors.HexColor("#FFEBEE")    # Light red background
-            light_grade_color = colors.HexColor("#EF5350")  # Lighter red for NO, ISM, BALL
-            base_style.append(('BACKGROUND', (0, i), (-1, i), row_color))
-            base_style.append(('BACKGROUND', (grade_col, i), (grade_col, i), grade_color))
-            base_style.append(('TEXTCOLOR', (grade_col, i), (grade_col, i), colors.white))
-            # NO, ISM, BALL ustunlari ochroq daraja rangida
-            base_style.append(('BACKGROUND', (0, i), (0, i), light_grade_color))  # NO
-            base_style.append(('BACKGROUND', (1, i), (1, i), light_grade_color))  # ISM
-            base_style.append(('BACKGROUND', (2, i), (2, i), light_grade_color))  # BALL
-            base_style.append(('TEXTCOLOR', (0, i), (0, i), colors.white))
-            base_style.append(('TEXTCOLOR', (1, i), (1, i), colors.white))
-            base_style.append(('TEXTCOLOR', (2, i), (2, i), colors.white))
-            # OTM foizi ustuni daraja rangiga mos (NC uchun 0%)
-            base_style.append(('BACKGROUND', (otm_col, i), (otm_col, i), grade_color))
-            base_style.append(('TEXTCOLOR', (otm_col, i), (otm_col, i), colors.white))
+            base_style.append(('BACKGROUND', (0, i), (-1, i), grade_color))  # Barcha ustunlar bir xil rangda
+            base_style.append(('TEXTCOLOR', (0, i), (-1, i), colors.white))  # Barcha matn oq rangda
             
         else:
             # Default for any other grade
