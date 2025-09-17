@@ -1251,77 +1251,7 @@ def prepare_excel_for_download(results_df, data_df=None, beta_values=None, title
         worksheet.set_column('D:D', 10)  # BALL
         worksheet.set_column('E:E', 8)   # DARAJA
         
-        # Add statistics sheet like in PDF
-        if data_df is not None and beta_values is not None:
-            # Create statistics sheet
-            stats_df = pd.DataFrame({
-                'Ko\'rsatkich': [
-                    'Jami talabalar soni',
-                    'O\'rtacha ball',
-                    'Eng yuqori ball',
-                    'Eng past ball',
-                    'Standart og\'ish',
-                    'Muvaffaqiyat darajasi (%)',
-                    'A+ darajasi (%)',
-                    'A darajasi (%)',
-                    'B+ darajasi (%)',
-                    'B darajasi (%)',
-                    'C+ darajasi (%)',
-                    'C darajasi (%)',
-                    'NC darajasi (%)'
-                ],
-                'Qiymat': [
-                    len(df),
-                    f"{df['BALL'].mean():.2f}",
-                    f"{df['BALL'].max():.2f}",
-                    f"{df['BALL'].min():.2f}",
-                    f"{df['BALL'].std():.2f}",
-                    f"{(df['BALL'] >= 60).mean() * 100:.2f}%",
-                    f"{(df['DARAJA'] == 'A+').mean() * 100:.2f}%",
-                    f"{(df['DARAJA'] == 'A').mean() * 100:.2f}%",
-                    f"{(df['DARAJA'] == 'B+').mean() * 100:.2f}%",
-                    f"{(df['DARAJA'] == 'B').mean() * 100:.2f}%",
-                    f"{(df['DARAJA'] == 'C+').mean() * 100:.2f}%",
-                    f"{(df['DARAJA'] == 'C').mean() * 100:.2f}%",
-                    f"{(df['DARAJA'] == 'NC').mean() * 100:.2f}%"
-                ]
-            })
-            
-            stats_df.to_excel(writer, sheet_name='Statistika', index=False)
-            
-            # Format statistics sheet
-            stats_worksheet = writer.sheets['Statistika']
-            stats_worksheet.set_column('A:A', 25)
-            stats_worksheet.set_column('B:B', 15)
-            
-            # Format header
-            for col_num, value in enumerate(stats_df.columns.values):
-                stats_worksheet.write(0, col_num, value, header_format)
-        
-        # Add item difficulty sheet if beta_values available
-        if beta_values is not None:
-            # Create item difficulty sheet
-            difficulty_df = pd.DataFrame({
-                'Savol': [f"Q{i+1}" for i in range(len(beta_values))],
-                'Qiyinlik': [f"{beta:.3f}" for beta in beta_values],
-                'Daraja': ['Oson' if beta < -0.5 else 'O\'rta' if beta < 0.5 else 'Qiyin' for beta in beta_values]
-            })
-            
-            # Sort by difficulty
-            difficulty_df = difficulty_df.sort_values('Qiyinlik', ascending=False)
-            difficulty_df = difficulty_df.reset_index(drop=True)
-            
-            difficulty_df.to_excel(writer, sheet_name='Savollar Qiyinligi', index=False)
-            
-            # Format difficulty sheet
-            diff_worksheet = writer.sheets['Savollar Qiyinligi']
-            diff_worksheet.set_column('A:A', 10)
-            diff_worksheet.set_column('B:B', 15)
-            diff_worksheet.set_column('C:C', 10)
-            
-            # Format header
-            for col_num, value in enumerate(difficulty_df.columns.values):
-                diff_worksheet.write(0, col_num, value, header_format)
+        # Per your request, charts and statistics are PDF-only. Excel will contain only the main results sheet.
     
     # Reset the pointer to the beginning of the BytesIO object
     excel_data.seek(0)
