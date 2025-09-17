@@ -1145,7 +1145,7 @@ def prepare_excel_for_download(results_df, data_df=None, beta_values=None, title
     # Rename columns to match required format
     column_mapping = {
         'Student ID': 'ISM FAMILIYA',
-        'Raw Score': 'BALL',
+        'Standard Score': 'BALL',  # Use Standard Score instead of Raw Score
         'Grade': 'DARAJA',
         'Ability': 'ABILITY'
     }
