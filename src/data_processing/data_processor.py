@@ -1223,8 +1223,8 @@ def prepare_excel_for_download(results_df, data_df=None, beta_values=None, title
                     # Apply same color to all columns in the row
                     for col_num in range(len(df.columns)):
                         cell_value = df.iloc[row_num, col_num]
-                        # Format BALL column to 2 decimal places (e.g., 12.34)
-                        if df.columns[col_num] == 'BALL' and isinstance(cell_value, (int, float)):
+                        # Format BALL and ABILITY columns to 2 decimal places (e.g., 12.34, 2.49)
+                        if df.columns[col_num] in ['BALL', 'ABILITY'] and isinstance(cell_value, (int, float)):
                             cell_value = f"{float(cell_value):.2f}"
                         worksheet.write(row_num+1, col_num, cell_value, grade_formats[grade])
         
