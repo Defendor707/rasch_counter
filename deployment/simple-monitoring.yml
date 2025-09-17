@@ -1,0 +1,76 @@
+# Simple monitoring setup for Rasch Counter Bot
+# Bu fayl oddiy monitoring uchun yaratilgan
+
+version: '3.8'
+
+services:
+  rasch-bot:
+    build: .
+    container_name: rasch-counter-bot
+    restart: unless-stopped
+    environment:
+      - TELEGRAM_TOKEN=${TELEGRAM_TOKEN}
+      - LOG_LEVEL=INFO
+    volumes:
+      - ./data:/app/.data
+      - ./logs:/app/logs
+    ports:
+      - "8443:8443"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import requests; requests.get('http://localhost:8443/health', timeout=5)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.rasch-bot.rule=Host(`bot.yourdomain.com`)"
+      - "traefik.http.routers.rasch-bot.tls=true"
+
+  # Simple log monitoring with Fluentd
+  fluentd:
+    image: fluent/fluentd:latest
+    container_name: rasch-fluentd
+    volumes:
+      - ./logs:/var/log/rasch
+      - ./deployment/fluentd.conf:/fluentd/etc/fluent.conf
+    ports:
+      - "24224:24224"
+    depends_on:
+      - rasch-bot
+
+  # Simple metrics with Prometheus (optional)
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: rasch-prometheus
+    volumes:
+      - ./deployment/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus_data:/prometheus
+    ports:
+      - "9090:9090"
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--storage.tsdb.retention.time=200h'
+      - '--web.enable-lifecycle'
+
+  # Simple dashboard with Grafana (optional)
+  grafana:
+    image: grafana/grafana:latest
+    container_name: rasch-grafana
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin123
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./deployment/grafana/dashboards:/etc/grafana/provisioning/dashboards
+      - ./deployment/grafana/datasources:/etc/grafana/provisioning/datasources
+    ports:
+      - "3000:3000"
+    depends_on:
+      - prometheus
+
+volumes:
+  prometheus_data:
+  grafana_data:

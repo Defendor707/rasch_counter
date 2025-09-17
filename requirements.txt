@@ -1,11 +1,25 @@
+# Core dependencies
 pytelegrambotapi==4.29.1
 pandas==2.3.2
 numpy==2.2.6
 scipy==1.15.3
+
+# Data visualization
 matplotlib==3.10.6
 seaborn==0.13.2
+
+# Document generation
 reportlab==4.4.3
 openpyxl==3.1.5
 xlsxwriter==3.2.5
 PyPDF2==3.0.1
-streamlit==1.49.1
+
+# Web framework (for webhook support)
+flask==3.0.0
+
+# Development and testing
+pytest==7.4.3
+pytest-cov==4.1.0
+
+# Optional: Streamlit for web interface (if needed)
+# streamlit==1.49.1
