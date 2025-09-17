@@ -605,6 +605,9 @@ def prepare_simplified_excel(results_df, title="Nazorat Ballari"):
     simplified_df = df[['Student ID', 'Standard Score']].copy()
     simplified_df.columns = ['Ism Familiya', 'Ball']
     
+    # Format Ball column to 2 decimal places
+    simplified_df['Ball'] = simplified_df['Ball'].apply(lambda x: f"{float(x):.2f}")
+    
     # Create a BytesIO object
     excel_data = io.BytesIO()
     
