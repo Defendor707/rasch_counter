@@ -717,12 +717,11 @@ def main():
             btn_all_results = types.InlineKeyboardButton('📊 Barcha Natijalar va Grafiklar', callback_data='all_results')
             btn_excel = types.InlineKeyboardButton('💾 Excel formatda yuklash', callback_data='download_excel')
             btn_pdf = types.InlineKeyboardButton('📑 PDF formatda yuklash', callback_data='download_pdf')
-            btn_stats_pdf = types.InlineKeyboardButton('📈 Statistika (PDF)', callback_data='download_stats_pdf')
             btn_simple_excel = types.InlineKeyboardButton('📝 Nazorat Ballari', callback_data='download_simple_excel')
             
             markup.add(btn_all_results)
             markup.add(btn_excel, btn_pdf)
-            markup.add(btn_stats_pdf)
+            # stats button removed; '📊 Barcha Natijalar va Grafiklar' endi PDF beradi
             markup.add(btn_simple_excel)
             
             # Emojilar bilan ma'noli javob
@@ -908,12 +907,11 @@ def main():
             btn_all_results = types.InlineKeyboardButton('📊 Barcha Natijalar va Grafiklar', callback_data='all_results')
             btn_excel = types.InlineKeyboardButton('💾 Excel formatda yuklash', callback_data='download_excel')
             btn_pdf = types.InlineKeyboardButton('📑 PDF formatda yuklash', callback_data='download_pdf')
-            btn_stats_pdf = types.InlineKeyboardButton('📈 Statistika (PDF)', callback_data='download_stats_pdf')
             btn_simple_excel = types.InlineKeyboardButton('📝 Nazorat Ballari', callback_data='download_simple_excel')
             
             markup.add(btn_all_results)
             markup.add(btn_excel, btn_pdf)
-            markup.add(btn_stats_pdf)
+            # stats button removed here as well
             markup.add(btn_simple_excel)
             
             # A+/A baholar soni uchun
@@ -949,299 +947,32 @@ def main():
             )
             
         elif call.data == "all_results":
-            
-            # 2. Calculate and send statistics
-            stats = calculate_statistics(results_df)
-            
-            # Soddalashtirilgan statistika xabari
-            stats_text = "📊 Statistika:\n\n"
-            stats_text += f"👥 Jami talabalar soni: {stats['total_students']}\n"
-            
-            # Add average standard score if it exists
-            if 'Standard Score' in results_df.columns:
-                avg_standard = results_df['Standard Score'].mean()
-                stats_text += f"📝 O'rtacha standart ball: {avg_standard:.1f}\n"
-                
-            stats_text += f"📝 O'rtacha xom ball: {stats['avg_raw_score']:.2f}\n"
-            stats_text += f"✅ O'tish foizi: {stats['pass_rate']:.2f}%\n"
-            
-            # Display grade counts summary with a cleaner format
-            stats_text += "\n📑 Baholar taqsimoti:"
-            
-            # Use BBM grade order
-            grade_order = ['A+', 'A', 'B+', 'B', 'C+', 'C', 'NC']
-            
-            for grade in grade_order:
-                count = grade_counts.get(grade, 0)
-                percentage = (count / stats['total_students']) * 100 if stats['total_students'] > 0 else 0
-                
-                # Only show grades that have at least one student
-                if count > 0:
-                    # More concise grade description
-                    stats_text += f"\n{grade} - {count} talaba ({percentage:.2f}%)"
-            
-            # Send statistics message
-            bot.send_message(
-                chat_id=call.message.chat.id,
-                text=stats_text
-            )
-            
-            # Creating a single Excel file with charts only
-            import io
-            import pandas as pd
-            import numpy as np
-            
-            # Create empty status message
-            status_message = bot.send_message(
-                chat_id=call.message.chat.id,
-                text="⏳ Diagrammali Excel fayli tayyorlanmoqda..."
-            )
-            
-            # Create a BytesIO object for the Excel file
-            excel_data = io.BytesIO()
-            
-            # Get the necessary data
+            # Statistika.xlsx o'rniga PDF qaytaramiz
+            user_info = user_data.get(user_id, {})
+            ability_estimates = user_info.get('ability_estimates')
+            grade_counts = user_info.get('grade_counts', {})
             data_df = user_info.get('data_df')
             beta_values = user_info.get('beta_values')
-            
-            # Create a Pandas Excel writer
-            with pd.ExcelWriter(excel_data, engine='xlsxwriter') as writer:
-                # Create a sheet for charts only
-                workbook = writer.book
-                chart_sheet = workbook.add_worksheet('Diagrammalar')
-                
-                # Format settings
-                title_format = workbook.add_format({
-                    'bold': True, 
-                    'font_size': 14,
-                    'align': 'center',
-                    'valign': 'vcenter'
-                })
-                
-                # 1. Create Grade Distribution Chart
-                grade_chart = workbook.add_chart({'type': 'column'})
-                
-                # Create a temp sheet for grade data
-                grade_data_sheet = workbook.add_worksheet('Baholar')
-                
-                # Write grade data to sheet
-                grade_data_sheet.write('A1', 'Baho')
-                grade_data_sheet.write('B1', 'Talabalar soni')
-                
-                row = 1
-                for grade in grade_order:
-                    if grade in grade_counts:
-                        count = grade_counts[grade]
-                        grade_data_sheet.write(row, 0, grade)
-                        grade_data_sheet.write(row, 1, count)
-                        row += 1
-                
-                # Add a title to the chart
-                grade_chart.set_title({'name': 'Baholar taqsimoti'})
-                
-                # Add the series
-                grade_chart.add_series({
-                    'name': 'Talabalar soni',
-                    'categories': '=Baholar!$A$2:$A$' + str(row),
-                    'values': '=Baholar!$B$2:$B$' + str(row),
-                })
-                
-                # Set axes labels
-                grade_chart.set_x_axis({'name': 'Baholar'})
-                grade_chart.set_y_axis({'name': 'Talabalar soni'})
-                
-                # Insert chart into the chart sheet
-                chart_sheet.merge_range('A1:H1', 'BAHOLAR TAQSIMOTI', title_format)
-                chart_sheet.insert_chart('A2', grade_chart, {'x_scale': 1.5, 'y_scale': 1.2})
-                
-                # 2. Create Ability Distribution Chart
-                if 'ability_estimates' in user_info and user_info['ability_estimates'] is not None:
-                    ability_chart = workbook.add_chart({'type': 'column'})
-                    
-                    # Create sheet for ability data
-                    ability_data_sheet = workbook.add_worksheet('Qobiliyatlar')
-                    
-                    # Prepare ability data for bins
-                    abilities = np.array(user_info['ability_estimates'])
-                    bin_width = 0.5
-                    min_val = np.floor(min(abilities))
-                    max_val = np.ceil(max(abilities))
-                    bins = np.arange(min_val, max_val + bin_width, bin_width)
-                    hist, _ = np.histogram(abilities, bins=bins)
-                    
-                    # Create bin labels for x-axis (use middle of bin)
-                    bin_labels = [(bins[i] + bins[i+1])/2 for i in range(len(bins)-1)]
-                    
-                    # Write header
-                    ability_data_sheet.write('A1', 'Qobiliyat')
-                    ability_data_sheet.write('B1', 'Talabalar soni')
-                    
-                    # Write bin data
-                    for i, (count, bin_label) in enumerate(zip(hist, bin_labels)):
-                        ability_data_sheet.write(i+1, 0, f"{bin_label:.1f}")
-                        ability_data_sheet.write(i+1, 1, count)
-                    
-                    # Add a title to the chart
-                    ability_chart.set_title({'name': 'Talabalar qobiliyat taqsimoti'})
-                    
-                    # Add the series
-                    ability_chart.add_series({
-                        'name': 'Talabalar soni',
-                        'categories': '=Qobiliyatlar!$A$2:$A$' + str(len(hist)+1),
-                        'values': '=Qobiliyatlar!$B$2:$B$' + str(len(hist)+1),
-                        'fill': {'color': '#3498DB'},
-                    })
-                    
-                    # Set axes labels
-                    ability_chart.set_x_axis({'name': 'Qobiliyat (Theta)'})
-                    ability_chart.set_y_axis({'name': 'Talabalar soni'})
-                    
-                    # Insert chart into the chart sheet
-                    chart_sheet.merge_range('A20:H20', 'TALABALAR QOBILIYAT TAQSIMOTI', title_format)
-                    chart_sheet.insert_chart('A21', ability_chart, {'x_scale': 1.5, 'y_scale': 1.2})
-                
-                # 3. Create Item Difficulty Analysis Chart (if data is available)
-                if data_df is not None and beta_values is not None and len(beta_values) > 0:
-                    # Create difficulty data sheet
-                    difficulty_sheet = workbook.add_worksheet('Qiyinlik')
-                    
-                    # Calculate correct answer percentages
-                    percentages = []
-                    question_numbers = []
-                    
-                    for i in range(len(beta_values)):
-                        # Find the corresponding column in data_df
-                        if i+1 < len(data_df.columns):
-                            question_numbers.append(i+1)
-                            col_name = data_df.columns[i+1]  # +1 because first column is student ID
-                            correct_count = data_df[col_name].sum()
-                            total_count = len(data_df)
-                            percentages.append(100 * correct_count / total_count if total_count > 0 else 0)
-                    
-                    # Write headers
-                    difficulty_sheet.write('A1', 'Savol')
-                    difficulty_sheet.write('B1', 'Qiyinlik')
-                    difficulty_sheet.write('C1', 'Foiz')
-                    
-                    # Write data for chart
-                    for i, (beta, q_num, percent) in enumerate(zip(beta_values, question_numbers, percentages)):
-                        difficulty_sheet.write(i+1, 0, f"Q{q_num}")
-                        difficulty_sheet.write(i+1, 1, beta)
-                        difficulty_sheet.write(i+1, 2, percent)
-                    
-                    # Create chart for item difficulty
-                    item_chart = workbook.add_chart({'type': 'scatter'})
-                    
-                    # Add a title to the chart
-                    item_chart.set_title({'name': 'Savollar qiyinligi tahlili'})
-                    
-                    # Add the series for difficulty
-                    item_chart.add_series({
-                        'name': 'Qiyinlik',
-                        'categories': '=Qiyinlik!$A$2:$A$' + str(len(beta_values)+1),
-                        'values': '=Qiyinlik!$B$2:$B$' + str(len(beta_values)+1),
-                        'marker': {'type': 'circle', 'size': 8, 'fill': {'color': '#E74C3C'}},
-                    })
-                    
-                    # Set axes labels
-                    item_chart.set_x_axis({'name': 'Savol raqami'})
-                    item_chart.set_y_axis({'name': 'Qiyinlik darajasi'})
-                    
-                    # Insert chart into the chart sheet
-                    chart_sheet.merge_range('A40:H40', 'SAVOLLAR QIYINLIGI TAHLILI', title_format)
-                    chart_sheet.insert_chart('A41', item_chart, {'x_scale': 1.5, 'y_scale': 1.2})
-                    
-                    # Create a second chart for correct answer percentages
-                    percent_chart = workbook.add_chart({'type': 'column'})
-                    
-                    # Add a title to the chart
-                    percent_chart.set_title({'name': "To'g'ri javoblar foizi"})
-                    
-                    # Add the series for percentages
-                    percent_chart.add_series({
-                        'name': "To'g'ri javoblar %",
-                        'categories': '=Qiyinlik!$A$2:$A$' + str(len(beta_values)+1),
-                        'values': '=Qiyinlik!$C$2:$C$' + str(len(beta_values)+1),
-                        'fill': {'color': '#2ECC71'},
-                    })
-                    
-                    # Set axes labels
-                    percent_chart.set_x_axis({'name': 'Savol raqami'})
-                    percent_chart.set_y_axis({
-                        'name': "To'g'ri javoblar foizi",
-                        'min': 0,
-                        'max': 100,
-                    })
-                    
-                    # Insert chart into the chart sheet
-                    chart_sheet.merge_range('A60:H60', "TO'G'RI JAVOBLAR FOIZI", title_format)
-                    chart_sheet.insert_chart('A61', percent_chart, {'x_scale': 1.5, 'y_scale': 1.2})
-                
-                # Add statistics sheet
-                stats_sheet = workbook.add_worksheet('Statistika')
-                
-                stats_sheet.write('A1', 'Umumiy talabalar soni:', workbook.add_format({'bold': True}))
-                stats_sheet.write('B1', len(results_df))
-                
-                stats_sheet.write('A3', 'Baholar taqsimoti:', workbook.add_format({'bold': True}))
-                stats_sheet.write('A4', 'Baho')
-                stats_sheet.write('B4', 'Talabalar soni')
-                stats_sheet.write('C4', 'Foiz')
-                
-                row = 5
-                total_students = len(results_df)
-                for i, grade in enumerate(grade_order):
-                    if grade in grade_counts:
-                        count = grade_counts[grade]
-                        percentage = (count / total_students) * 100 if total_students > 0 else 0
-                        stats_sheet.write(f'A{row}', grade)
-                        stats_sheet.write(f'B{row}', count)
-                        stats_sheet.write(f'C{row}', f"{percentage:.2f}%")
-                        row += 1
-            
-            # Ensure the file is properly closed and seek to the beginning
-            excel_data.seek(0)
-            
-            # Send the Excel file with charts
+            stats_pdf = prepare_statistics_pdf(results_df, grade_counts, ability_estimates, data_df, beta_values, title="STATISTIKA")
+
             bot.send_document(
                 chat_id=call.message.chat.id,
-                document=excel_data,
-                visible_file_name="test_grafiklar.xlsx",
-                caption="📊 Barcha grafiklar diagrammalar bitta Excel faylda"
+                document=stats_pdf,
+                visible_file_name="statistika.pdf",
+                caption="📈 Statistika va grafiklar (PDF)."
             )
-            
-            # Delete the status message
-            bot.delete_message(
-                chat_id=call.message.chat.id,
-                message_id=status_message.message_id
-            )
-            
-            # Savol statistikalari o'chirildi - faqat Excel faylda ko'rsatiladi
-            
-            # 6. Update the main message with back button
+
             new_markup = types.InlineKeyboardMarkup(row_width=2)
-            
             btn_back = types.InlineKeyboardButton('⬅️ Orqaga', callback_data='back_to_menu')
             btn_excel = types.InlineKeyboardButton('💾 Excel formatda yuklash', callback_data='download_excel')
             btn_pdf = types.InlineKeyboardButton('📑 PDF formatda yuklash', callback_data='download_pdf')
-            btn_stats_pdf = types.InlineKeyboardButton('📈 Statistika (PDF)', callback_data='download_stats_pdf')
-            btn_simple_excel = types.InlineKeyboardButton('📝 Nazorat Ballari', callback_data='download_simple_excel')
-            
             new_markup.add(btn_back)
-            new_markup.add(btn_stats_pdf)
             new_markup.add(btn_excel, btn_pdf)
-            new_markup.add(btn_simple_excel)
-            
-            # Qisqa va aniq xabar
+
             bot.edit_message_text(
                 chat_id=call.message.chat.id,
                 message_id=call.message.message_id,
-                text="📊 Statistik ma'lumotlar va Excel fayli yuborildi! ✅\n\n"
-                     "📈 Excel faylidagi diagrammalar:\n"
-                     "• 1️⃣ Baholar taqsimoti diagrammasi\n"
-                     "• 2️⃣ Talabalar qobiliyat taqsimoti\n"
-                     "• 3️⃣ Savollarning qiyinlik darajasi\n\n"
-                     "💾 Boshqa formatdagi fayllarni yuklab olish uchun quyidagi tugmalarni bosing 👇",
+                text="✅ Statistika PDF yuborildi!",
                 reply_markup=new_markup
             )
             
@@ -1267,11 +998,10 @@ def main():
             btn_back = types.InlineKeyboardButton('⬅️ Orqaga', callback_data='back_to_menu')
             btn_excel = types.InlineKeyboardButton('💾 Excel formatda yuklash', callback_data='download_excel')
             btn_pdf = types.InlineKeyboardButton('📑 PDF formatda yuklash', callback_data='download_pdf')
-            btn_stats_pdf = types.InlineKeyboardButton('📈 Statistika (PDF)', callback_data='download_stats_pdf')
             btn_simple_excel = types.InlineKeyboardButton('📝 Nazorat Ballari', callback_data='download_simple_excel')
             
             new_markup.add(btn_back)
-            new_markup.add(btn_stats_pdf)
+            # stats button removed in back_to_menu
             new_markup.add(btn_excel, btn_pdf)
             new_markup.add(btn_simple_excel)
             
