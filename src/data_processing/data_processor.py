@@ -1138,7 +1138,7 @@ def prepare_excel_for_download(results_df, data_df=None, beta_values=None, title
     df = df.sort_values(by='Standard Score', ascending=False).reset_index(drop=True)
     
     # Add Rank column - always ensure proper sequential ranking
-    df['Rank'] = range(1, len(df) + 1)
+    df['NO'] = range(1, len(df) + 1)
     
     # Add OTM percentage column like in PDF
     if 'Standard Score' in df.columns:
@@ -1154,39 +1154,39 @@ def prepare_excel_for_download(results_df, data_df=None, beta_values=None, title
     else:
         df['OTM FOIZI'] = 0.0
     
+    # Rename columns to match PDF format
+    column_mapping = {
+        'Student ID': 'ISM FAMILIYA',
+        'Raw Score': 'BALL',
+        'Grade': 'DARAJA'
+    }
+    
+    # Apply column renaming
+    for old_name, new_name in column_mapping.items():
+        if old_name in df.columns:
+            df = df.rename(columns={old_name: new_name})
+    
     # Reorder columns to match PDF format: NO, ISM FAMILIYA, BALL, DARAJA, OTM FOIZI
     cols = df.columns.tolist()
     
     # Create new column order
     new_cols = []
     
-    # Add Rank as NO
-    if 'Rank' in cols:
+    # Add columns in the correct order
+    if 'NO' in cols:
         new_cols.append('NO')
-        df = df.rename(columns={'Rank': 'NO'})
-    
-    # Add Student ID as ISM FAMILIYA
-    if 'Student ID' in cols:
+    if 'ISM FAMILIYA' in cols:
         new_cols.append('ISM FAMILIYA')
-        df = df.rename(columns={'Student ID': 'ISM FAMILIYA'})
-    
-    # Add Raw Score as BALL
-    if 'Raw Score' in cols:
+    if 'BALL' in cols:
         new_cols.append('BALL')
-        df = df.rename(columns={'Raw Score': 'BALL'})
-    
-    # Add Grade as DARAJA
-    if 'Grade' in cols:
+    if 'DARAJA' in cols:
         new_cols.append('DARAJA')
-        df = df.rename(columns={'Grade': 'DARAJA'})
-    
-    # Add OTM FOIZI
     if 'OTM FOIZI' in cols:
         new_cols.append('OTM FOIZI')
     
     # Add other columns if they exist
     for col in cols:
-        if col not in ['NO', 'ISM FAMILIYA', 'BALL', 'DARAJA', 'OTM FOIZI']:
+        if col not in new_cols:
             new_cols.append(col)
     
     # Apply new column order
