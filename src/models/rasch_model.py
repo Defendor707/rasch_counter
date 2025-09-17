@@ -17,13 +17,8 @@ IRT_MODEL = os.environ.get('IRT_MODEL', '1PL').upper()
 # Server quvvati optimizatsiyasi - adaptive CPU ishlatish
 NUM_CORES = os.cpu_count() or 6
 
-def get_cpu_load():
-    try:
-        with open('/proc/loadavg', 'r') as f:
-            load = float(f.read().split()[0])
-        return load
-    except:
-        return 0.0
+# CPU load function moved to utils.performance
+from utils.performance import get_cpu_load
 
 # Adaptive worker count based on current load
 current_load = get_cpu_load()
@@ -368,17 +363,28 @@ def ability_to_grade(ability, thresholds=None, min_passing_percent=60):
     # UZBMB standartlariga muvofiq baho chegaralari
     # Bu chegaralar milliy sertifikat imtihonlari uchun optimallashtirilgan
     
-    if t_score >= 70:
-        return 'A+'  # 1-daraja (Oliy imtiyozli)
-    elif t_score >= 65:
-        return 'A'   # 1-daraja (Oliy)
-    elif t_score >= 60:
-        return 'B+'  # 2-daraja (Yuqori imtiyozli)
-    elif t_score >= 55:
-        return 'B'   # 2-daraja (Yuqori)
-    elif t_score >= 50:
-        return 'C+'  # 3-daraja (O'rta imtiyozli)
-    elif t_score >= 46:
-        return 'C'   # 3-daraja (O'rta)
+    # Array'lar uchun vectorized operations
+    if isinstance(t_score, np.ndarray):
+        grades = np.where(t_score >= 70, 'A+',
+                 np.where(t_score >= 65, 'A',
+                 np.where(t_score >= 60, 'B+',
+                 np.where(t_score >= 55, 'B',
+                 np.where(t_score >= 50, 'C+',
+                 np.where(t_score >= 46, 'C', 'NC'))))))
+        return grades
     else:
-        return 'NC'  # 4-daraja (Sertifikatsiz)
+        # Single value uchun
+        if t_score >= 70:
+            return 'A+'  # 1-daraja (Oliy imtiyozli)
+        elif t_score >= 65:
+            return 'A'   # 1-daraja (Oliy)
+        elif t_score >= 60:
+            return 'B+'  # 2-daraja (Yuqori imtiyozli)
+        elif t_score >= 55:
+            return 'B'   # 2-daraja (Yuqori)
+        elif t_score >= 50:
+            return 'C+'  # 3-daraja (O'rta imtiyozli)
+        elif t_score >= 46:
+            return 'C'   # 3-daraja (O'rta)
+        else:
+            return 'NC'  # 4-daraja (Sertifikatsiz)

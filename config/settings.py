@@ -26,7 +26,7 @@ TELEGRAM_CERT_FILE = os.environ.get("TELEGRAM_CERT_FILE")
 TELEGRAM_KEY_FILE = os.environ.get("TELEGRAM_KEY_FILE")
 
 # Admin settings
-ADMIN_USER_ID = 7537966029
+ADMIN_USER_ID = int(os.environ.get("ADMIN_USER_ID", "0"))
 
 # Model settings
 IRT_MODEL = os.environ.get('IRT_MODEL', '1PL').upper()

@@ -132,6 +132,12 @@ def main():
         TELEGRAM_TOKEN, TELEGRAM_WEBHOOK_HOST, TELEGRAM_WEBHOOK_PORT,
         TELEGRAM_CERT_FILE, TELEGRAM_KEY_FILE, ADMIN_USER_ID
     )
+    from utils.validation import validate_all
+    
+    # Validate environment before starting
+    if not validate_all():
+        print("❌ Environment validation failed. Please fix the errors above.")
+        return
     
     # Webhook configuration
     use_webhook = bool(TELEGRAM_WEBHOOK_HOST and TELEGRAM_CERT_FILE and TELEGRAM_KEY_FILE)

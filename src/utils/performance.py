@@ -46,6 +46,20 @@ def monitor_performance(func: Callable) -> Callable:
     
     return wrapper
 
+def get_cpu_load() -> float:
+    """
+    Get current CPU load
+    
+    Returns:
+        CPU load as float
+    """
+    try:
+        with open('/proc/loadavg', 'r') as f:
+            load = float(f.read().split()[0])
+        return load
+    except:
+        return 0.0
+
 def get_system_info() -> dict:
     """
     Get current system information

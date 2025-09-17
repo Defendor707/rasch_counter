@@ -20,13 +20,8 @@ NUM_CORES = cpu_count() or 6
 MAX_WORKERS = min(int(NUM_CORES * 0.8), 4)  # Load yuqori bo'lgani uchun 4 ga cheklash
 
 # CPU load monitoring va adaptive optimization
-def get_cpu_load():
-    try:
-        with open('/proc/loadavg', 'r') as f:
-            load = float(f.read().split()[0])
-        return load
-    except:
-        return 0.0
+# CPU load function moved to utils.performance
+from utils.performance import get_cpu_load
 
 # Adaptive worker count based on current load
 current_load = get_cpu_load()
