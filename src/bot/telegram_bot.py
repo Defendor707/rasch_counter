@@ -693,8 +693,8 @@ def main():
             # Monitor processed files
             monitor.increment_processed_files(len(results_df))
             
-            # Prepare Excel data for download
-            excel_data = prepare_excel_for_download(results_df)
+            # Prepare Excel data for download with all features
+            excel_data = prepare_excel_for_download(results_df, data_df, beta_values, title)
             
             # Store results for this user, including item difficulties and original data
             user_data[user_id] = {
@@ -1239,8 +1239,12 @@ def main():
             )
             
         elif call.data == "download_excel":
-            # Prepare Excel file for download
-            excel_data = prepare_excel_for_download(results_df)
+            # Prepare Excel file for download with all features
+            user_info = user_data.get(user_id, {})
+            data_df = user_info.get('data_df')
+            beta_values = user_info.get('beta_values')
+            title = user_info.get('title', 'REPETITSION TEST NATIJALARI')
+            excel_data = prepare_excel_for_download(results_df, data_df, beta_values, title)
             
             # Send the Excel file
             bot.send_document(

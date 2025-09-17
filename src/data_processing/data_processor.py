@@ -1118,12 +1118,15 @@ def prepare_excel_with_charts(results_df, grade_counts, ability_estimates, data_
     return excel_data
 
 
-def prepare_excel_for_download(results_df):
+def prepare_excel_for_download(results_df, data_df=None, beta_values=None, title="REPETITSION TEST NATIJALARI"):
     """
-    Prepare the results DataFrame as an Excel file for download.
+    Prepare the results DataFrame as an Excel file for download with all features like PDF.
     
     Parameters:
     - results_df: DataFrame with processed results
+    - data_df: Original data DataFrame
+    - beta_values: Item difficulty values
+    - title: Title for the report
     
     Returns:
     - excel_data: BytesIO object containing Excel file data
@@ -1137,32 +1140,69 @@ def prepare_excel_for_download(results_df):
     # Add Rank column - always ensure proper sequential ranking
     df['Rank'] = range(1, len(df) + 1)
     
-    # OTM percentage calculation removed as per client request
+    # Add OTM percentage column like in PDF
+    if 'Standard Score' in df.columns:
+        # Calculate OTM percentage based on Standard Score
+        max_score = df['Standard Score'].max()
+        min_score = df['Standard Score'].min()
+        
+        if max_score != min_score:
+            # Normalize to 0-100 scale
+            df['OTM FOIZI'] = ((df['Standard Score'] - min_score) / (max_score - min_score) * 100).round(2)
+        else:
+            df['OTM FOIZI'] = 100.0
+    else:
+        df['OTM FOIZI'] = 0.0
     
-    # Reorder columns to put 'Rank' before 'Student ID'
+    # Reorder columns to match PDF format: NO, ISM FAMILIYA, BALL, DARAJA, OTM FOIZI
     cols = df.columns.tolist()
-    student_id_idx = cols.index('Student ID')
-    rank_idx = cols.index('Rank')
     
-    # Remove 'Rank' from its current position
-    cols.pop(rank_idx)
-    # Insert 'Rank' before 'Student ID'
-    cols.insert(student_id_idx, 'Rank')
+    # Create new column order
+    new_cols = []
+    
+    # Add Rank as NO
+    if 'Rank' in cols:
+        new_cols.append('NO')
+        df = df.rename(columns={'Rank': 'NO'})
+    
+    # Add Student ID as ISM FAMILIYA
+    if 'Student ID' in cols:
+        new_cols.append('ISM FAMILIYA')
+        df = df.rename(columns={'Student ID': 'ISM FAMILIYA'})
+    
+    # Add Raw Score as BALL
+    if 'Raw Score' in cols:
+        new_cols.append('BALL')
+        df = df.rename(columns={'Raw Score': 'BALL'})
+    
+    # Add Grade as DARAJA
+    if 'Grade' in cols:
+        new_cols.append('DARAJA')
+        df = df.rename(columns={'Grade': 'DARAJA'})
+    
+    # Add OTM FOIZI
+    if 'OTM FOIZI' in cols:
+        new_cols.append('OTM FOIZI')
+    
+    # Add other columns if they exist
+    for col in cols:
+        if col not in ['NO', 'ISM FAMILIYA', 'BALL', 'DARAJA', 'OTM FOIZI']:
+            new_cols.append(col)
     
     # Apply new column order
-    df = df[cols]
+    df = df[new_cols]
     
     # Create a BytesIO object
     excel_data = io.BytesIO()
     
     # Create a Pandas Excel writer using the BytesIO object
     with pd.ExcelWriter(excel_data, engine='xlsxwriter') as writer:
-        # Write the DataFrame to an Excel sheet
-        df.to_excel(writer, sheet_name='Rasch Model Results', index=False)
+        # Write the main results sheet
+        df.to_excel(writer, sheet_name='Natijalar', index=False)
         
         # Get the workbook and worksheet objects
         workbook = writer.book
-        worksheet = writer.sheets['Rasch Model Results']
+        worksheet = writer.sheets['Natijalar']
         
         # Define cell formats for different grades
         header_format = workbook.add_format({
@@ -1174,7 +1214,7 @@ def prepare_excel_for_download(results_df):
             'valign': 'vcenter'
         })
         
-        # Grade-specific formats (per user request)
+        # Grade-specific formats (same as PDF - all columns same color)
         grade_formats = {
             'A+': workbook.add_format({'bg_color': '#006400', 'font_color': 'white', 'border': 1}),  # Dark green
             'A': workbook.add_format({'bg_color': '#28B463', 'font_color': 'white', 'border': 1}),  # Green
@@ -1189,25 +1229,95 @@ def prepare_excel_for_download(results_df):
         for col_num, value in enumerate(df.columns.values):
             worksheet.write(0, col_num, value, header_format)
         
-        # Format the grade column and apply conditional formatting
-        grade_col = df.columns.get_loc('Grade')
-        score_col = df.columns.get_loc('Standard Score')
+        # Apply formatting to each row based on grade (all columns same color)
+        grade_col = df.columns.get_loc('DARAJA')
         
-        # Apply formatting to each row based on grade
         for row_num, row_data in enumerate(df.values):
-            # Get values from the row using iloc to avoid attribute errors
-            grade = df.iloc[row_num]['Grade']
+            grade = df.iloc[row_num]['DARAJA']
             
             if grade in grade_formats:
-                worksheet.write(row_num+1, grade_col, grade, grade_formats[grade])
+                # Apply same color to all columns in the row
+                for col_num in range(len(df.columns)):
+                    worksheet.write(row_num+1, col_num, df.iloc[row_num, col_num], grade_formats[grade])
         
         # Set column widths
-        worksheet.set_column('A:A', 6)   # Rank (No ustuni uchun kichikroq kenglik)
-        worksheet.set_column('B:B', 30)  # Student ID (Ism-familiya uchun kattaroq kenglik)
-        worksheet.set_column('C:C', 10)  # Raw Score
-        worksheet.set_column('D:D', 12)  # Ability
-        worksheet.set_column('E:E', 12)  # Standard Score
-        worksheet.set_column('F:F', 8)   # Grade
+        worksheet.set_column('A:A', 6)   # NO
+        worksheet.set_column('B:B', 30)  # ISM FAMILIYA
+        worksheet.set_column('C:C', 10)  # BALL
+        worksheet.set_column('D:D', 8)   # DARAJA
+        worksheet.set_column('E:E', 12)  # OTM FOIZI
+        
+        # Add statistics sheet like in PDF
+        if data_df is not None and beta_values is not None:
+            # Create statistics sheet
+            stats_df = pd.DataFrame({
+                'Ko\'rsatkich': [
+                    'Jami talabalar soni',
+                    'O\'rtacha ball',
+                    'Eng yuqori ball',
+                    'Eng past ball',
+                    'Standart og\'ish',
+                    'Muvaffaqiyat darajasi (%)',
+                    'A+ darajasi (%)',
+                    'A darajasi (%)',
+                    'B+ darajasi (%)',
+                    'B darajasi (%)',
+                    'C+ darajasi (%)',
+                    'C darajasi (%)',
+                    'NC darajasi (%)'
+                ],
+                'Qiymat': [
+                    len(df),
+                    f"{df['BALL'].mean():.2f}",
+                    f"{df['BALL'].max():.2f}",
+                    f"{df['BALL'].min():.2f}",
+                    f"{df['BALL'].std():.2f}",
+                    f"{(df['OTM FOIZI'] >= 60).mean() * 100:.2f}%",
+                    f"{(df['DARAJA'] == 'A+').mean() * 100:.2f}%",
+                    f"{(df['DARAJA'] == 'A').mean() * 100:.2f}%",
+                    f"{(df['DARAJA'] == 'B+').mean() * 100:.2f}%",
+                    f"{(df['DARAJA'] == 'B').mean() * 100:.2f}%",
+                    f"{(df['DARAJA'] == 'C+').mean() * 100:.2f}%",
+                    f"{(df['DARAJA'] == 'C').mean() * 100:.2f}%",
+                    f"{(df['DARAJA'] == 'NC').mean() * 100:.2f}%"
+                ]
+            })
+            
+            stats_df.to_excel(writer, sheet_name='Statistika', index=False)
+            
+            # Format statistics sheet
+            stats_worksheet = writer.sheets['Statistika']
+            stats_worksheet.set_column('A:A', 25)
+            stats_worksheet.set_column('B:B', 15)
+            
+            # Format header
+            for col_num, value in enumerate(stats_df.columns.values):
+                stats_worksheet.write(0, col_num, value, header_format)
+        
+        # Add item difficulty sheet if beta_values available
+        if beta_values is not None:
+            # Create item difficulty sheet
+            difficulty_df = pd.DataFrame({
+                'Savol': [f"Q{i+1}" for i in range(len(beta_values))],
+                'Qiyinlik': [f"{beta:.3f}" for beta in beta_values],
+                'Daraja': ['Oson' if beta < -0.5 else 'O\'rta' if beta < 0.5 else 'Qiyin' for beta in beta_values]
+            })
+            
+            # Sort by difficulty
+            difficulty_df = difficulty_df.sort_values('Qiyinlik', ascending=False)
+            difficulty_df = difficulty_df.reset_index(drop=True)
+            
+            difficulty_df.to_excel(writer, sheet_name='Savollar Qiyinligi', index=False)
+            
+            # Format difficulty sheet
+            diff_worksheet = writer.sheets['Savollar Qiyinligi']
+            diff_worksheet.set_column('A:A', 10)
+            diff_worksheet.set_column('B:B', 15)
+            diff_worksheet.set_column('C:C', 10)
+            
+            # Format header
+            for col_num, value in enumerate(difficulty_df.columns.values):
+                diff_worksheet.write(0, col_num, value, header_format)
     
     # Reset the pointer to the beginning of the BytesIO object
     excel_data.seek(0)
