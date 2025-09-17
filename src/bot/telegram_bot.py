@@ -760,9 +760,9 @@ def main():
                 f"✅ Tahlil yakunlandi!\n\n"
                 f"📊 Natijalar xulosasi:\n"
                 f"👨‍🎓 Jami: {total_students} talaba\n"
-                f"🏆 A+/A: {top_grades_count} ta ({top_grade_percent:.1f}%)\n"
-                f"✅ O'tish: {passing_grades_count} ta ({pass_rate:.1f}%)\n"
-                f"❌ O'tmagan: {failing_count} ta ({failing_percent:.1f}%)\n\n"
+                f"🏆 A+/A: {top_grades_count} ta ({top_grade_percent:.2f}%)\n"
+                f"✅ O'tish: {passing_grades_count} ta ({pass_rate:.2f}%)\n"
+                f"❌ O'tmagan: {failing_count} ta ({failing_percent:.2f}%)\n\n"
                 f"📈 Quyidagi tugmalardan birini tanlang 👇"
             )
             
@@ -930,9 +930,9 @@ def main():
             menu_message = (
                 f"📊 *Rasch model natijalar tahlili*\n\n"
                 f"👨‍🎓 Jami: {total_students} talaba\n"
-                f"🏆 A+/A: {top_grades_count} ta ({top_grade_percent:.1f}%)\n"
-                f"✅ O'tish: {passing_grades_count} ta ({pass_rate:.1f}%)\n"
-                f"❌ O'tmagan: {failing_count} ta ({failing_percent:.1f}%)\n\n"
+                f"🏆 A+/A: {top_grades_count} ta ({top_grade_percent:.2f}%)\n"
+                f"✅ O'tish: {passing_grades_count} ta ({pass_rate:.2f}%)\n"
+                f"❌ O'tmagan: {failing_count} ta ({failing_percent:.2f}%)\n\n"
                 f"📈 Quyidagi tugmalardan birini tanlang 👇"
             )
             
@@ -958,7 +958,7 @@ def main():
                 stats_text += f"📝 O'rtacha standart ball: {avg_standard:.1f}\n"
                 
             stats_text += f"📝 O'rtacha xom ball: {stats['avg_raw_score']:.2f}\n"
-            stats_text += f"✅ O'tish foizi: {stats['pass_rate']:.1f}%\n"
+            stats_text += f"✅ O'tish foizi: {stats['pass_rate']:.2f}%\n"
             
             # Display grade counts summary with a cleaner format
             stats_text += "\n📑 Baholar taqsimoti:"
@@ -973,7 +973,7 @@ def main():
                 # Only show grades that have at least one student
                 if count > 0:
                     # More concise grade description
-                    stats_text += f"\n{grade} - {count} talaba ({percentage:.1f}%)"
+                    stats_text += f"\n{grade} - {count} talaba ({percentage:.2f}%)"
             
             # Send statistics message
             bot.send_message(
@@ -1191,7 +1191,7 @@ def main():
                         percentage = (count / total_students) * 100 if total_students > 0 else 0
                         stats_sheet.write(f'A{row}', grade)
                         stats_sheet.write(f'B{row}', count)
-                        stats_sheet.write(f'C{row}', f"{percentage:.1f}%")
+                        stats_sheet.write(f'C{row}', f"{percentage:.2f}%")
                         row += 1
             
             # Ensure the file is properly closed and seek to the beginning
@@ -1442,7 +1442,7 @@ def main():
                     ax.text(
                         bar.get_x() + bar.get_width()/2.,
                         height / 2,  # Position in middle of bar
-                        f"{percentage:.1f}%",
+                        f"{percentage:.2f}%",
                         ha='center',
                         va='center',
                         fontweight='bold',
@@ -1539,7 +1539,7 @@ def main():
             height = bar.get_height()
             y_pos = height + 0.1 if height >= 0 else height - 0.3
             ax1.text(bar.get_x() + bar.get_width() / 2, y_pos,
-                   f"{percent:.1f}%", ha='center', va='bottom' if height >= 0 else 'top',
+                   f"{percent:.2f}%", ha='center', va='bottom' if height >= 0 else 'top',
                    fontsize=8, rotation=90, color='black', fontweight='bold')
         
         # Add horizontal lines for difficulty categorization
@@ -1579,10 +1579,10 @@ def main():
         
         # Table data for analysis
         rows = ['Eng qiyin savollar', 'Eng oson savollar']
-        cols = [f"#{item[1]}: {item[0]:.2f} ({item[2]:.1f}%)" for item in hardest_items + easiest_items]
+        cols = [f"#{item[1]}: {item[0]:.2f} ({item[2]:.2f}%)" for item in hardest_items + easiest_items]
         cellText = [
-            [f"#{item[1]}: {item[0]:.2f} ({item[2]:.1f}%)" for item in hardest_items],
-            [f"#{item[1]}: {item[0]:.2f} ({item[2]:.1f}%)" for item in easiest_items]
+            [f"#{item[1]}: {item[0]:.2f} ({item[2]:.2f}%)" for item in hardest_items],
+            [f"#{item[1]}: {item[0]:.2f} ({item[2]:.2f}%)" for item in easiest_items]
         ]
         
         # Add a table at the bottom

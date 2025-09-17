@@ -1353,9 +1353,9 @@ def prepare_pdf_for_download(results_df, title="REPETITSION TEST NATIJALARI"):
         
         # Format OTM percentage - show 0% for NC grades
         if grade == 'NC':
-            otm_text = "0%"  # 0% for NC grades
+            otm_text = "0.00%"  # 0% for NC grades
         else:
-            otm_text = f"{otm_percentage:.1f}%"
+            otm_text = f"{otm_percentage:.2f}%"
         
         row_data = [
             str(rank_value),  # Rank - always sequential
@@ -1424,11 +1424,11 @@ def prepare_pdf_for_download(results_df, title="REPETITSION TEST NATIJALARI"):
             base_style.append(('TEXTCOLOR', (grade_col, i), (grade_col, i), colors.white))
             # NO, ISM, BALL ustunlari ochroq daraja rangida
             base_style.append(('BACKGROUND', (0, i), (0, i), light_grade_color))  # NO
-            base_style.append(('BACKGROUND', (2, i), (2, i), light_grade_color))  # ISM
-            base_style.append(('BACKGROUND', (3, i), (3, i), light_grade_color))  # BALL
+            base_style.append(('BACKGROUND', (1, i), (1, i), light_grade_color))  # ISM
+            base_style.append(('BACKGROUND', (2, i), (2, i), light_grade_color))  # BALL
             base_style.append(('TEXTCOLOR', (0, i), (0, i), colors.white))
+            base_style.append(('TEXTCOLOR', (1, i), (1, i), colors.white))
             base_style.append(('TEXTCOLOR', (2, i), (2, i), colors.white))
-            base_style.append(('TEXTCOLOR', (3, i), (3, i), colors.white))
             # OTM foizi ustuni daraja rangiga mos
             base_style.append(('BACKGROUND', (otm_col, i), (otm_col, i), grade_color))
             base_style.append(('TEXTCOLOR', (otm_col, i), (otm_col, i), colors.white))
@@ -1443,11 +1443,11 @@ def prepare_pdf_for_download(results_df, title="REPETITSION TEST NATIJALARI"):
             base_style.append(('TEXTCOLOR', (grade_col, i), (grade_col, i), colors.white))
             # NO, ISM, BALL ustunlari ochroq daraja rangida
             base_style.append(('BACKGROUND', (0, i), (0, i), light_grade_color))  # NO
-            base_style.append(('BACKGROUND', (2, i), (2, i), light_grade_color))  # ISM
-            base_style.append(('BACKGROUND', (3, i), (3, i), light_grade_color))  # BALL
+            base_style.append(('BACKGROUND', (1, i), (1, i), light_grade_color))  # ISM
+            base_style.append(('BACKGROUND', (2, i), (2, i), light_grade_color))  # BALL
             base_style.append(('TEXTCOLOR', (0, i), (0, i), colors.white))
+            base_style.append(('TEXTCOLOR', (1, i), (1, i), colors.white))
             base_style.append(('TEXTCOLOR', (2, i), (2, i), colors.white))
-            base_style.append(('TEXTCOLOR', (3, i), (3, i), colors.white))
             # OTM foizi ustuni daraja rangiga mos
             base_style.append(('BACKGROUND', (otm_col, i), (otm_col, i), grade_color))
             base_style.append(('TEXTCOLOR', (otm_col, i), (otm_col, i), colors.white))
@@ -1462,11 +1462,11 @@ def prepare_pdf_for_download(results_df, title="REPETITSION TEST NATIJALARI"):
             base_style.append(('TEXTCOLOR', (grade_col, i), (grade_col, i), colors.white))
             # NO, ISM, BALL ustunlari ochroq daraja rangida
             base_style.append(('BACKGROUND', (0, i), (0, i), light_grade_color))  # NO
-            base_style.append(('BACKGROUND', (2, i), (2, i), light_grade_color))  # ISM
-            base_style.append(('BACKGROUND', (3, i), (3, i), light_grade_color))  # BALL
+            base_style.append(('BACKGROUND', (1, i), (1, i), light_grade_color))  # ISM
+            base_style.append(('BACKGROUND', (2, i), (2, i), light_grade_color))  # BALL
             base_style.append(('TEXTCOLOR', (0, i), (0, i), colors.white))
+            base_style.append(('TEXTCOLOR', (1, i), (1, i), colors.white))
             base_style.append(('TEXTCOLOR', (2, i), (2, i), colors.white))
-            base_style.append(('TEXTCOLOR', (3, i), (3, i), colors.white))
             # OTM foizi ustuni daraja rangiga mos
             base_style.append(('BACKGROUND', (otm_col, i), (otm_col, i), grade_color))
             base_style.append(('TEXTCOLOR', (otm_col, i), (otm_col, i), colors.white))
@@ -1481,11 +1481,11 @@ def prepare_pdf_for_download(results_df, title="REPETITSION TEST NATIJALARI"):
             base_style.append(('TEXTCOLOR', (grade_col, i), (grade_col, i), colors.white))
             # NO, ISM, BALL ustunlari ochroq daraja rangida
             base_style.append(('BACKGROUND', (0, i), (0, i), light_grade_color))  # NO
-            base_style.append(('BACKGROUND', (2, i), (2, i), light_grade_color))  # ISM
-            base_style.append(('BACKGROUND', (3, i), (3, i), light_grade_color))  # BALL
+            base_style.append(('BACKGROUND', (1, i), (1, i), light_grade_color))  # ISM
+            base_style.append(('BACKGROUND', (2, i), (2, i), light_grade_color))  # BALL
             base_style.append(('TEXTCOLOR', (0, i), (0, i), colors.white))
+            base_style.append(('TEXTCOLOR', (1, i), (1, i), colors.white))
             base_style.append(('TEXTCOLOR', (2, i), (2, i), colors.white))
-            base_style.append(('TEXTCOLOR', (3, i), (3, i), colors.white))
             # OTM foizi ustuni daraja rangiga mos
             base_style.append(('BACKGROUND', (otm_col, i), (otm_col, i), grade_color))
             base_style.append(('TEXTCOLOR', (otm_col, i), (otm_col, i), colors.white))
@@ -1500,11 +1500,11 @@ def prepare_pdf_for_download(results_df, title="REPETITSION TEST NATIJALARI"):
             base_style.append(('TEXTCOLOR', (grade_col, i), (grade_col, i), colors.white))
             # NO, ISM, BALL ustunlari ochroq daraja rangida
             base_style.append(('BACKGROUND', (0, i), (0, i), light_grade_color))  # NO
-            base_style.append(('BACKGROUND', (2, i), (2, i), light_grade_color))  # ISM
-            base_style.append(('BACKGROUND', (3, i), (3, i), light_grade_color))  # BALL
+            base_style.append(('BACKGROUND', (1, i), (1, i), light_grade_color))  # ISM
+            base_style.append(('BACKGROUND', (2, i), (2, i), light_grade_color))  # BALL
             base_style.append(('TEXTCOLOR', (0, i), (0, i), colors.white))
+            base_style.append(('TEXTCOLOR', (1, i), (1, i), colors.white))
             base_style.append(('TEXTCOLOR', (2, i), (2, i), colors.white))
-            base_style.append(('TEXTCOLOR', (3, i), (3, i), colors.white))
             # OTM foizi ustuni daraja rangiga mos
             base_style.append(('BACKGROUND', (otm_col, i), (otm_col, i), grade_color))
             base_style.append(('TEXTCOLOR', (otm_col, i), (otm_col, i), colors.white))
@@ -1538,11 +1538,11 @@ def prepare_pdf_for_download(results_df, title="REPETITSION TEST NATIJALARI"):
             base_style.append(('TEXTCOLOR', (grade_col, i), (grade_col, i), colors.white))
             # NO, ISM, BALL ustunlari ochroq daraja rangida
             base_style.append(('BACKGROUND', (0, i), (0, i), light_grade_color))  # NO
-            base_style.append(('BACKGROUND', (2, i), (2, i), light_grade_color))  # ISM
-            base_style.append(('BACKGROUND', (3, i), (3, i), light_grade_color))  # BALL
+            base_style.append(('BACKGROUND', (1, i), (1, i), light_grade_color))  # ISM
+            base_style.append(('BACKGROUND', (2, i), (2, i), light_grade_color))  # BALL
             base_style.append(('TEXTCOLOR', (0, i), (0, i), colors.white))
+            base_style.append(('TEXTCOLOR', (1, i), (1, i), colors.white))
             base_style.append(('TEXTCOLOR', (2, i), (2, i), colors.white))
-            base_style.append(('TEXTCOLOR', (3, i), (3, i), colors.white))
             # OTM foizi ustuni daraja rangiga mos (NC uchun 0%)
             base_style.append(('BACKGROUND', (otm_col, i), (otm_col, i), grade_color))
             base_style.append(('TEXTCOLOR', (otm_col, i), (otm_col, i), colors.white))
