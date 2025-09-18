@@ -486,7 +486,8 @@ def process_exam_data(df, progress_callback=None):
         theta_std = 1e-6
     z_scores = (ability_estimates - theta_mean) / theta_std
     t_scores = 50.0 + 10.0 * z_scores
-    t_scores = np.clip(t_scores, 0, 100)
+    # So'rovga muvofiq: Standard Score 10–90.1 diapazonda
+    t_scores = np.clip(t_scores, 10, 90.1)
     
     # UZBMB standartlariga muvofiq baholash
     grades = np.full(len(t_scores), 'NC', dtype='<U3')
@@ -502,11 +503,13 @@ def process_exam_data(df, progress_callback=None):
         progress_callback(75, "Natijalar tizimlashtirilmoqda...")
     
     # Natijalar jadvali yaratish
+    # ABILITY: z-score (theta ni dataset bo'yicha standartlashtirilgan ko'rinishi), 2 xonali kasrga yaxlitlangan
+    ability_z = np.round((ability_estimates - theta_mean) / (theta_std if theta_std > 0 else 1e-6), 2)
     results_df = pd.DataFrame({
         'Student ID': student_ids,
         'Raw Score': raw_scores,
-        'Ability': ability_estimates.astype(np.float32),
-        'Standard Score': standard_scores.astype(np.float32),
+        'Ability': ability_z.astype(np.float32),
+        'Standard Score': np.round(standard_scores, 2).astype(np.float32),
         'Grade': grades
     })
     
