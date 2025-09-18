@@ -486,7 +486,8 @@ def process_exam_data(df, progress_callback=None):
         theta_std = 1e-6
     z_scores = (ability_estimates - theta_mean) / theta_std
     t_scores = 50.0 + 10.0 * z_scores
-    t_scores = np.clip(t_scores, 0, 100)
+    # So'rovga muvofiq: Standard Score 10–90.1 diapazonda
+    t_scores = np.clip(t_scores, 10, 90.1)
     
     # UZBMB standartlariga muvofiq baholash
     grades = np.full(len(t_scores), 'NC', dtype='<U3')

@@ -338,8 +338,8 @@ def ability_to_standard_score(ability):
     # Theta qiymatini T-score ga o'tkazish
     t_score = 50 + (10 * ability)
     
-    # Ballarni 0-100 oralig'ida chegaralash
-    standard_score = np.clip(t_score, 0, 100)
+    # Ballarni 10–90.1 oralig'ida chegaralash (so'rov bo'yicha)
+    standard_score = np.clip(t_score, 10, 90.1)
     
     return standard_score
 
