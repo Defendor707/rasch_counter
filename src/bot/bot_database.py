@@ -67,29 +67,22 @@ class BotDatabase:
         self.close()
     
     def add_user(self, user_id, first_name, last_name="", username=""):
-        """Add a new user or update existing user"""
+        """Add or update user atomically (upsert) to avoid UNIQUE errors."""
         conn = self.connect()
         cursor = conn.cursor()
-        
-        # Check if user exists
-        cursor.execute("SELECT 1 FROM users WHERE user_id = ?", (user_id,))
-        user_exists = cursor.fetchone()
-        
+
         current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        
-        if not user_exists:
-            # Add new user
-            cursor.execute(
-                "INSERT INTO users (user_id, first_name, last_name, username, join_date, last_active) VALUES (?, ?, ?, ?, ?, ?)",
-                (user_id, first_name, last_name, username, current_time, current_time)
-            )
-        else:
-            # Update last active time for existing user
-            cursor.execute(
-                "UPDATE users SET last_active = ?, first_name = ?, last_name = ?, username = ? WHERE user_id = ?",
-                (current_time, first_name, last_name, username, user_id)
-            )
-        
+
+        # Portable upsert: first try insert (ignore if exists), then update
+        cursor.execute(
+            "INSERT OR IGNORE INTO users (user_id, first_name, last_name, username, join_date, last_active) VALUES (?, ?, ?, ?, ?, ?)",
+            (user_id, first_name, last_name, username, current_time, current_time)
+        )
+        cursor.execute(
+            "UPDATE users SET last_active = ?, first_name = ?, last_name = ?, username = ? WHERE user_id = ?",
+            (current_time, first_name, last_name, username, user_id)
+        )
+
         conn.commit()
         self.close()
     
