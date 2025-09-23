@@ -518,28 +518,6 @@
                 </div>
             </div>
             
-            <div class="features">
-                <div class="feature">
-                    <i class="fas fa-brain"></i>
-                    <h3>Rasch Model</h3>
-                    <p>1PL IRT model asosida aniq qobiliyat baholash</p>
-                </div>
-                <div class="feature">
-                    <i class="fas fa-chart-pie"></i>
-                    <h3>Statistik Tahlil</h3>
-                    <p>To'liq statistik ma'lumotlar va grafiklar</p>
-                </div>
-                <div class="feature">
-                    <i class="fas fa-trophy"></i>
-                    <h3>UZBMB Standartlari</h3>
-                    <p>Rasmiy baholash standartlariga muvofiq</p>
-                </div>
-                <div class="feature">
-                    <i class="fas fa-download"></i>
-                    <h3>Export Formats</h3>
-                    <p>Excel va PDF formatda hisobotlar</p>
-                </div>
-            </div>
         </div>
     </div>
     
@@ -694,15 +672,15 @@
                     <h3><i class="fas fa-users"></i> Umumiy Ma'lumotlar</h3>
                     <p><strong>Talabalar soni:</strong> ${data.summary.total_students}</p>
                     <p><strong>Savollar soni:</strong> ${data.summary.total_questions}</p>
-                    <p><strong>O'rtacha ball:</strong> ${data.summary.average_score.toFixed(1)}</p>
-                    <p><strong>Eng yuqori ball:</strong> ${data.summary.highest_score.toFixed(1)}</p>
-                    <p><strong>Eng past ball:</strong> ${data.summary.lowest_score.toFixed(1)}</p>
+                    <p><strong>O'rtacha ball:</strong> ${(data.summary.average_score || 0).toFixed(1)}</p>
+                    <p><strong>Eng yuqori ball:</strong> ${(data.summary.highest_score || 0).toFixed(1)}</p>
+                    <p><strong>Eng past ball:</strong> ${(data.summary.lowest_score || 0).toFixed(1)}</p>
                 </div>
                 
                 <div class="result-card">
                     <h3><i class="fas fa-trophy"></i> Baho Taqsimoti</h3>
                     <div class="grade-distribution">
-                        ${Object.entries(data.summary.grade_distribution).map(([grade, count]) => `
+                        ${Object.entries(data.summary.grade_distribution || {}).map(([grade, count]) => `
                             <div class="grade-item">
                                 <div class="grade">${grade}</div>
                                 <div class="count">${count} talaba</div>
@@ -713,10 +691,10 @@
                 
                 <div class="result-card">
                     <h3><i class="fas fa-chart-line"></i> Savol Qiyinliklari</h3>
-                    <p><strong>Eng oson savol:</strong> ${data.item_difficulties.min.toFixed(3)}</p>
-                    <p><strong>Eng qiyin savol:</strong> ${data.item_difficulties.max.toFixed(3)}</p>
-                    <p><strong>O'rtacha qiyinlik:</strong> ${data.item_difficulties.mean.toFixed(3)}</p>
-                    <p><strong>Standart og'ish:</strong> ${data.item_difficulties.std.toFixed(3)}</p>
+                    <p><strong>Eng oson savol:</strong> ${(data.item_difficulties.min || 0).toFixed(3)}</p>
+                    <p><strong>Eng qiyin savol:</strong> ${(data.item_difficulties.max || 0).toFixed(3)}</p>
+                    <p><strong>O'rtacha qiyinlik:</strong> ${(data.item_difficulties.mean || 0).toFixed(3)}</p>
+                    <p><strong>Standart og'ish:</strong> ${(data.item_difficulties.std || 0).toFixed(3)}</p>
                 </div>
                 
                 <div class="result-card">
@@ -731,7 +709,7 @@
                                 </tr>
                             </thead>
                             <tbody>
-                                ${data.item_difficulties.items.map(item => `
+                                ${(data.item_difficulties.items || []).map(item => `
                                     <tr>
                                         <td>${item.Question}</td>
                                         <td>${item.Difficulty}</td>
@@ -779,12 +757,12 @@
                         <div class="chart-data">
                             <h4>📈 Eng Oson Savollar (Top 5):</h4>
                             <ul>
-                                ${data.item_difficulties.items
+                                ${(data.item_difficulties.items || [])
                                     .sort((a, b) => a.Difficulty - b.Difficulty)
                                     .slice(0, 5)
                                     .map(item => `
                                         <li>
-                                            <span>Savol ${item.Question}: ${item.Difficulty.toFixed(3)}</span>
+                                            <span>Savol ${item.Question}: ${(item.Difficulty || 0).toFixed(3)}</span>
                                             <span class="difficulty-badge difficulty-${item.Difficulty_Level.toLowerCase()}">${item.Difficulty_Level}</span>
                                         </li>
                                     `).join('')}
@@ -792,12 +770,12 @@
                             
                             <h4>📉 Eng Qiyin Savollar (Top 5):</h4>
                             <ul>
-                                ${data.item_difficulties.items
+                                ${(data.item_difficulties.items || [])
                                     .sort((a, b) => b.Difficulty - a.Difficulty)
                                     .slice(0, 5)
                                     .map(item => `
                                         <li>
-                                            <span>Savol ${item.Question}: ${item.Difficulty.toFixed(3)}</span>
+                                            <span>Savol ${item.Question}: ${(item.Difficulty || 0).toFixed(3)}</span>
                                             <span class="difficulty-badge difficulty-${item.Difficulty_Level.toLowerCase()}">${item.Difficulty_Level}</span>
                                         </li>
                                     `).join('')}
@@ -884,15 +862,15 @@
             // Update the HTML
             fitList.innerHTML = `
                 <li>
-                    <span style="color: #e53e3e;">🔴 Yomon (${poorFitPct.toFixed(1)}%)</span>
+                    <span style="color: #e53e3e;">🔴 Yomon (${(poorFitPct || 0).toFixed(1)}%)</span>
                     <span>Modelga mos kelmaydigan elementlar</span>
                 </li>
                 <li>
-                    <span style="color: #38a169;">🟢 Yaxshi (${goodFitPct.toFixed(1)}%)</span>
+                    <span style="color: #38a169;">🟢 Yaxshi (${(goodFitPct || 0).toFixed(1)}%)</span>
                     <span>Modelga yaxshi mos keladigan elementlar</span>
                 </li>
                 <li>
-                    <span style="color: #ed8936;">🟠 Qabul qilinadigan (${moderateFitPct.toFixed(1)}%)</span>
+                    <span style="color: #ed8936;">🟠 Qabul qilinadigan (${(moderateFitPct || 0).toFixed(1)}%)</span>
                     <span>Modelga qabul qilinadigan darajada mos keladigan elementlar</span>
                 </li>
             `;

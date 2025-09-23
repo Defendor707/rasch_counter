@@ -27,15 +27,15 @@ from bot.health_check import create_health_app
 def create_diagram_images(beta_values, grade_counts):
     """Diagrammalar uchun rasm yaratish"""
     try:
-        # Create figure with subplots
-        fig, ((ax1, ax2), (ax3, ax4)) = plt.subplots(2, 2, figsize=(15, 12))
-        fig.suptitle('📊 RASCH MODEL TAHLILI - PROFESSIONAL DIAGRAMMALAR', fontsize=16, fontweight='bold')
+        # Create figure with subplots - Telegram compatible size
+        fig, ((ax1, ax2), (ax3, ax4)) = plt.subplots(2, 2, figsize=(12, 10))
+        fig.suptitle('📊 RASCH MODEL TAHLILI - PROFESSIONAL DIAGRAMMALAR', fontsize=14, fontweight='bold')
         
         # 1. Item Difficulty Distribution
         ax1.hist(beta_values, bins=20, alpha=0.7, color='skyblue', edgecolor='black')
-        ax1.set_title('📈 Savollar Qiyinligi Taqsimoti', fontweight='bold')
-        ax1.set_xlabel('Qiyinlik Darajasi (Beta)')
-        ax1.set_ylabel('Savollar Soni')
+        ax1.set_title('📈 Savollar Qiyinligi Taqsimoti', fontweight='bold', fontsize=12)
+        ax1.set_xlabel('Qiyinlik Darajasi (Beta)', fontsize=10)
+        ax1.set_ylabel('Savollar Soni', fontsize=10)
         ax1.grid(True, alpha=0.3)
         
         # Add difficulty level zones
@@ -60,16 +60,16 @@ def create_diagram_images(beta_values, grade_counts):
                 non_zero_colors.append(colors[i % len(colors)])
         
         ax2.pie(non_zero_counts, labels=non_zero_grades, autopct='%1.1f%%', colors=non_zero_colors)
-        ax2.set_title('📊 Baholar Taqsimoti', fontweight='bold')
+        ax2.set_title('📊 Baholar Taqsimoti', fontweight='bold', fontsize=12)
         
         # 3. Item Difficulty Scatter Plot
         question_numbers = list(range(1, len(beta_values) + 1))
         colors_scatter = ['green' if x < -0.5 else 'orange' if x < 0.5 else 'red' for x in beta_values]
         
-        scatter = ax3.scatter(question_numbers, beta_values, c=colors_scatter, alpha=0.7, s=50)
-        ax3.set_title('🎯 Savollar Qiyinligi Scatter Plot', fontweight='bold')
-        ax3.set_xlabel('Savol Raqami')
-        ax3.set_ylabel('Qiyinlik Darajasi')
+        scatter = ax3.scatter(question_numbers, beta_values, c=colors_scatter, alpha=0.7, s=60)
+        ax3.set_title('🎯 Savollar Qiyinligi Scatter Plot', fontweight='bold', fontsize=12)
+        ax3.set_xlabel('Savol Raqami', fontsize=10)
+        ax3.set_ylabel('Qiyinlik Darajasi', fontsize=10)
         ax3.grid(True, alpha=0.3)
         
         # Add difficulty level lines
@@ -105,8 +105,8 @@ def create_diagram_images(beta_values, grade_counts):
         fit_colors = ['#e53e3e', '#ed8936', '#38a169']
         
         bars = ax4.bar(fit_categories, fit_counts, color=fit_colors, alpha=0.8)
-        ax4.set_title('🎯 Fit Sifatini Baholash', fontweight='bold')
-        ax4.set_ylabel('Foiz (%)')
+        ax4.set_title('🎯 Fit Sifatini Baholash', fontweight='bold', fontsize=12)
+        ax4.set_ylabel('Foiz (%)', fontsize=10)
         ax4.set_ylim(0, 60)
         
         # Add value labels on bars
@@ -116,9 +116,10 @@ def create_diagram_images(beta_values, grade_counts):
         
         plt.tight_layout()
         
-        # Save to BytesIO
+        # Save to BytesIO with Telegram compatible settings
         img_buffer = BytesIO()
-        plt.savefig(img_buffer, format='png', dpi=300, bbox_inches='tight')
+        plt.savefig(img_buffer, format='png', dpi=200, bbox_inches='tight', 
+                   facecolor='white', edgecolor='none', pad_inches=0.1)
         img_buffer.seek(0)
         
         plt.close(fig)
@@ -374,8 +375,8 @@ def main():
                 return
             
             # Get results
-            summary_results = analysis_service.get_results(session_id, format='summary')
-            detailed_results = analysis_service.get_results(session_id, format='detailed')
+            summary_results = analysis_service.get_results(session_id, format='json')
+            detailed_results = analysis_service.get_results(session_id, format='json')
             
             # Store session_id for user
             user_data[user_id] = {
@@ -891,8 +892,8 @@ def main():
                 return
             
             # Get results from service
-            detailed_results = analysis_service.get_results(session_id, format='detailed')
-            summary_results = analysis_service.get_results(session_id, format='summary')
+            detailed_results = analysis_service.get_results(session_id, format='json')
+            summary_results = analysis_service.get_results(session_id, format='json')
             
             results_df = detailed_results['results_df']
             ability_estimates = detailed_results['ability_estimates']
@@ -913,7 +914,7 @@ def main():
                 user_id=message.from_user.id,
                 action_type="process_exam",
                 num_students=len(results_df),
-                num_questions=len(data_df.columns) - 1  # Subtract 1 for student name column
+                num_questions=len(detailed_results['item_difficulties'])  # Use item_difficulties length
             )
             
             # Monitor processed files
@@ -1162,10 +1163,10 @@ def main():
                 if excel_data:
                     # Send the Excel file
                     bot.send_document(
-                        chat_id=call.message.chat.id,
-                        document=excel_data,
-                        visible_file_name="rasch_model_results.xlsx",
-                        caption="💾 natijalar Excel fayli."
+                chat_id=call.message.chat.id,
+                document=excel_data,
+                visible_file_name="rasch_model_results.xlsx",
+                caption="💾 natijalar Excel fayli."
                     )
                 else:
                     bot.send_message(
@@ -1196,10 +1197,10 @@ def main():
                 if pdf_data:
                     # Send the PDF file
                     bot.send_document(
-                        chat_id=call.message.chat.id,
-                        document=pdf_data,
-                        visible_file_name="rasch_model_results.pdf",
-                        caption="📑 Rasch model natijalarining PDF fayli."
+                chat_id=call.message.chat.id,
+                document=pdf_data,
+                visible_file_name="rasch_model_results.pdf",
+                caption="📑 Rasch model natijalarining PDF fayli."
                     )
                 else:
                     bot.send_message(
@@ -1227,17 +1228,23 @@ def main():
             
             if session_id:
                 # Get comprehensive statistics from analysis service
-                summary_results = analysis_service.get_results(session_id, format='summary')
-                detailed_results = analysis_service.get_results(session_id, format='detailed')
+                summary_results = analysis_service.get_results(session_id, format='json')
+                detailed_results = analysis_service.get_results(session_id, format='json')
                 
                 if summary_results and detailed_results:
                     # Create comprehensive statistics message
                     total_students = summary_results['total_students']
-                    top_grades_count = summary_results['top_grades_count']
-                    top_grades_percent = summary_results['top_grades_percent']
-                    pass_rate = summary_results['pass_rate']
-                    fail_percent = summary_results['fail_percent']
                     grade_counts = summary_results['grade_distribution']
+                    
+                    # Calculate additional statistics
+                    top_grades_count = grade_counts.get('A+', 0) + grade_counts.get('A', 0)
+                    top_grades_percent = (top_grades_count / total_students * 100) if total_students > 0 else 0
+                    
+                    # Pass/Fail calculation
+                    pass_grades = ['A+', 'A', 'B+', 'B', 'C+', 'C']
+                    pass_count = sum(grade_counts.get(grade, 0) for grade in pass_grades)
+                    pass_rate = (pass_count / total_students * 100) if total_students > 0 else 0
+                    fail_percent = 100 - pass_rate
                     
                     # Get item difficulties
                     beta_values = detailed_results['item_difficulties']
@@ -1310,11 +1317,20 @@ def main():
                     stats_text += f"  - Kuchli bog'liqlik mavjud\n"
                     stats_text += f"  - Ko'pchilik nuqtalar (1.0, 1.0) atrofida\n\n"
                     
-                    # Fit Quality Assessment
+                    # Fit Quality Assessment - Dynamic calculation
+                    n_items = len(beta_values)
+                    extreme_items = sum(1 for x in beta_values if abs(x) > 2)
+                    moderate_items = sum(1 for x in beta_values if 1 <= abs(x) <= 2)
+                    good_items = sum(1 for x in beta_values if abs(x) < 1)
+                    
+                    poor_fit_pct = (extreme_items / n_items) * 100
+                    moderate_fit_pct = (moderate_items / n_items) * 100
+                    good_fit_pct = (good_items / n_items) * 100
+                    
                     stats_text += f"🎯 *Fit Sifatini Baholash:*\n"
-                    stats_text += f"🔴 Yomon: 52.4% (Modelga mos kelmaydigan)\n"
-                    stats_text += f"🟢 Yaxshi: 23.8% (Modelga yaxshi mos keladigan)\n"
-                    stats_text += f"🟠 Qabul qilinadigan: 23.8% (Qabul qilinadigan darajada)\n\n"
+                    stats_text += f"🔴 Yomon: {poor_fit_pct:.1f}% (Modelga mos kelmaydigan)\n"
+                    stats_text += f"🟢 Yaxshi: {good_fit_pct:.1f}% (Modelga yaxshi mos keladigan)\n"
+                    stats_text += f"🟠 Qabul qilinadigan: {moderate_fit_pct:.1f}% (Qabul qilinadigan darajada)\n\n"
                     
                     stats_text += f"💡 *Tavsiya:* Model natijalari professional tahlil uchun yaxshi. "
                     stats_text += f"Yomon moslik ko'rsatkichlari bo'lgan elementlar qo'shimcha tekshirish talab qiladi."
@@ -1325,7 +1341,7 @@ def main():
                     if img_buffer:
                         # Send diagram image
                         bot.send_photo(
-                            chat_id=call.message.chat.id,
+                chat_id=call.message.chat.id,
                             photo=img_buffer,
                             caption="📊 **PROFESSIONAL DIAGRAMMALAR**\n\nYuqorida ko'rsatilgan diagrammalar:\n• Savollar Qiyinligi Taqsimoti\n• Baholar Taqsimoti\n• Savollar Qiyinligi Scatter Plot\n• Fit Sifatini Baholash",
                             parse_mode='Markdown'
@@ -1354,7 +1370,7 @@ def main():
                 bot.send_message(
                     chat_id=call.message.chat.id,
                     text="❌ Session topilmadi."
-                )
+            )
             
         elif call.data == "download_simple_excel":
             # Get simplified Excel file from analysis service
@@ -1367,10 +1383,10 @@ def main():
                 if excel_data:
                     # Send the Excel file
                     bot.send_document(
-                        chat_id=call.message.chat.id,
+                chat_id=call.message.chat.id,
                         document=excel_data,
-                        visible_file_name="nazorat_ballari.xlsx",
-                        caption="📝 Nazorat Ballari Excel fayli."
+                visible_file_name="nazorat_ballari.xlsx",
+                caption="📝 Nazorat Ballari Excel fayli."
                     )
                 else:
                     bot.send_message(
@@ -1514,7 +1530,8 @@ def main():
             ax.spines[spine].set_visible(False)
         
         # Save to buffer with higher DPI for better quality
-        plt.savefig(img_buf, format='png', dpi=150, bbox_inches='tight')
+        plt.savefig(img_buf, format='png', dpi=300, bbox_inches='tight', 
+                   facecolor='white', edgecolor='none', pad_inches=0.2)
         plt.close()
 
     # Create item difficulty plot and analysis function
@@ -1547,12 +1564,19 @@ def main():
         # Calculate percent correct for each item
         percent_correct = []
         for i in range(num_items):
-            # Find the corresponding column in data_df (columns after student_id)
-            if i+1 < len(data_df.columns):
-                col_name = data_df.columns[i+1]  # +1 because first column is student ID
-                correct_count = data_df[col_name].sum()
-                total_count = len(data_df)
-                percent_correct.append(100 * correct_count / total_count if total_count > 0 else 0)
+            # Calculate from df_cleaned data (list of dicts)
+            if isinstance(data_df, list) and len(data_df) > 0:
+                # Get column names from first row
+                col_names = list(data_df[0].keys())
+                if i+1 < len(col_names):
+                    col_name = col_names[i+1]  # +1 because first column is student ID
+                    correct_count = sum(1 for row in data_df if row.get(col_name, 0) == 1)
+                    total_count = len(data_df)
+                    percent_correct.append(100 * correct_count / total_count if total_count > 0 else 0)
+                else:
+                    percent_correct.append(0)
+            else:
+                percent_correct.append(0)
         
         # Create item indices
         item_indices = np.arange(1, num_items+1)
@@ -1666,7 +1690,8 @@ def main():
         fig.tight_layout()
         
         # Save to buffer with higher DPI for better quality
-        plt.savefig(img_buf, format='png', dpi=150, bbox_inches='tight')
+        plt.savefig(img_buf, format='png', dpi=300, bbox_inches='tight', 
+                   facecolor='white', edgecolor='none', pad_inches=0.2)
         plt.close()
         
     # Create ability distribution plot
@@ -1743,7 +1768,8 @@ def main():
             ax.spines[spine].set_visible(False)
         
         # Save to buffer with higher DPI for better quality
-        plt.savefig(img_buf, format='png', dpi=150, bbox_inches='tight')
+        plt.savefig(img_buf, format='png', dpi=300, bbox_inches='tight', 
+                   facecolor='white', edgecolor='none', pad_inches=0.2)
         plt.close()
 
     # Handler for processing ball files

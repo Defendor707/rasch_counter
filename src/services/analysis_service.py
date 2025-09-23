@@ -152,15 +152,31 @@ class RaschAnalysisService:
             # Normalize for display purposes - scale extreme values to reasonable range
             raw_difficulty = float(difficulty)
             
-            # If values are extremely large, normalize them
+            # Normalize extreme values to reasonable range
             if abs(raw_difficulty) > 10:
                 # Scale to [-3, 3] range while preserving relative differences
-                max_val = max(abs(float(d)) for d in results['item_difficulties'])
-                display_difficulty = (raw_difficulty / max_val) * 3
+                try:
+                    # Find min and max values
+                    all_values = [float(d) for d in results['item_difficulties'] if d is not None]
+                    if all_values:
+                        min_val = min(all_values)
+                        max_val = max(all_values)
+                        val_range = max_val - min_val
+                        
+                        if val_range > 0:
+                            # Normalize to [-3, 3] range
+                            normalized = ((raw_difficulty - min_val) / val_range) * 6 - 3
+                            display_difficulty = normalized
+                        else:
+                            display_difficulty = 0.0
+                    else:
+                        display_difficulty = raw_difficulty
+                except (ValueError, TypeError):
+                    display_difficulty = raw_difficulty
             else:
                 display_difficulty = raw_difficulty
             
-            # Final clip to ensure reasonable range
+            # Clip to reasonable range
             display_difficulty = np.clip(display_difficulty, -3, 3)
             
             item_difficulties_list.append({
@@ -175,24 +191,68 @@ class RaschAnalysisService:
         # Convert item_difficulties to numpy array for calculations
         item_diffs_array = np.array(results['item_difficulties'])
         
+        # Safe calculations for summary
+        try:
+            if len(results['results_df']) > 0 and 'Standard Score' in results['results_df'].columns:
+                avg_score = float(results['results_df']['Standard Score'].mean())
+                highest_score = float(results['results_df']['Standard Score'].max())
+                lowest_score = float(results['results_df']['Standard Score'].min())
+                std_deviation = float(results['results_df']['Standard Score'].std())
+            else:
+                avg_score = highest_score = lowest_score = std_deviation = 0.0
+        except Exception:
+            avg_score = highest_score = lowest_score = std_deviation = 0.0
+        
+        # Safe calculations for item difficulties
+        try:
+            if len(item_diffs_array) > 0:
+                item_min = float(item_diffs_array.min())
+                item_max = float(item_diffs_array.max())
+                item_mean = float(item_diffs_array.mean())
+                item_std = float(item_diffs_array.std())
+            else:
+                item_min = item_max = item_mean = item_std = 0.0
+        except Exception:
+            item_min = item_max = item_mean = item_std = 0.0
+        
+        # Convert numpy arrays to lists for JSON serialization
+        results_df_list = results['results_df'].to_dict('records') if hasattr(results['results_df'], 'to_dict') else results['results_df']
+        ability_estimates_list = results['ability_estimates'].tolist() if hasattr(results['ability_estimates'], 'tolist') else results['ability_estimates']
+        # Convert df_cleaned to dict for JSON serialization
+        df_cleaned_dict = results['df_cleaned'].to_dict('records') if hasattr(results['df_cleaned'], 'to_dict') else results['df_cleaned']
+        item_difficulties_list_raw = results['item_difficulties'].tolist() if hasattr(results['item_difficulties'], 'tolist') else results['item_difficulties']
+        
         return {
             'summary': {
                 'total_students': len(results['results_df']),
                 'total_questions': len(results['item_difficulties']),
                 'grade_distribution': results['grade_counts'],
-                'average_score': float(results['results_df']['Standard Score'].mean()),
-                'highest_score': float(results['results_df']['Standard Score'].max()),
-                'lowest_score': float(results['results_df']['Standard Score'].min()),
-                'std_deviation': float(results['results_df']['Standard Score'].std())
+                'average_score': avg_score,
+                'highest_score': highest_score,
+                'lowest_score': lowest_score,
+                'std_deviation': std_deviation
             },
             'item_difficulties': {
-                'min': float(item_diffs_array.min()),
-                'max': float(item_diffs_array.max()),
-                'mean': float(item_diffs_array.mean()),
-                'std': float(item_diffs_array.std()),
+                'min': item_min,
+                'max': item_max,
+                'mean': item_mean,
+                'std': item_std,
                 'items': item_difficulties_list
             },
-            'timestamp': results['timestamp']
+            'results_df': results_df_list,
+            'ability_estimates': ability_estimates_list,
+            'grade_counts': results['grade_counts'],
+            'df_cleaned': df_cleaned_dict,  # Convert to dict for JSON
+            'item_difficulties': item_difficulties_list_raw,
+            'timestamp': results['timestamp'],
+            # Bot uchun to'g'ridan-to'g'ri kirish
+            'total_students': len(results['results_df']),
+            'total_questions': len(results['item_difficulties']),
+            'grade_distribution': results['grade_counts'],
+            'average_score': avg_score,
+            'highest_score': highest_score,
+            'lowest_score': lowest_score,
+            'std_deviation': std_deviation
         }
     
     def _format_summary_results(self, results):
@@ -227,12 +287,38 @@ class RaschAnalysisService:
     
     def _format_detailed_results(self, results):
         """Batafsil format"""
+        # Item difficulties ni normalize qilish (bot uchun ham)
+        normalized_difficulties = []
+        for difficulty in results['item_difficulties']:
+            raw_difficulty = float(difficulty)
+            
+            # Normalize extreme values to reasonable range
+            if abs(raw_difficulty) > 10:
+                try:
+                    all_values = [float(d) for d in results['item_difficulties'] if d is not None]
+                    if all_values:
+                        min_val = min(all_values)
+                        max_val = max(all_values)
+                        val_range = max_val - min_val
+                        
+                        if val_range > 0:
+                            normalized = ((raw_difficulty - min_val) / val_range) * 6 - 3
+                            normalized_difficulties.append(normalized)
+                        else:
+                            normalized_difficulties.append(0.0)
+                    else:
+                        normalized_difficulties.append(raw_difficulty)
+                except (ValueError, TypeError):
+                    normalized_difficulties.append(raw_difficulty)
+            else:
+                normalized_difficulties.append(raw_difficulty)
+        
         return {
             'results_df': results['results_df'],
             'ability_estimates': results['ability_estimates'],
             'grade_counts': results['grade_counts'],
             'df_cleaned': results['df_cleaned'],
-            'item_difficulties': results['item_difficulties'],
+            'item_difficulties': normalized_difficulties,
             'timestamp': results['timestamp']
         }
     
