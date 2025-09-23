@@ -11,8 +11,9 @@ warnings.filterwarnings('ignore')
 # Small L2 regularization to stabilize extreme estimates (MAP with N(0, sigma^2))
 REG_LAMBDA = 0.05  # increase to shrink more, decrease to shrink less
 
-# Model selection: default to 1PL per Rasch; set IRT_MODEL=2PL to enable 2PL
-IRT_MODEL = os.environ.get('IRT_MODEL', '1PL').upper()
+# Model selection: Rasch model is always 1PL (one-parameter logistic)
+# Rasch model is always 1PL - no need for environment variable
+IRT_MODEL = '1PL'
 
 # Server quvvati optimizatsiyasi - adaptive CPU ishlatish
 NUM_CORES = os.cpu_count() or 6

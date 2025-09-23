@@ -66,11 +66,11 @@ def validate_environment() -> Tuple[bool, List[str]]:
     if log_level.upper() not in valid_levels:
         errors.append(f"❌ Invalid LOG_LEVEL: {log_level}. Must be one of {valid_levels}")
     
-    # Validate IRT model
+    # Validate IRT model (Rasch model is always 1PL)
     irt_model = os.environ.get('IRT_MODEL', '1PL').upper()
-    valid_models = ['1PL', '2PL']
+    valid_models = ['1PL']
     if irt_model not in valid_models:
-        errors.append(f"❌ Invalid IRT_MODEL: {irt_model}. Must be one of {valid_models}")
+        errors.append(f"❌ Invalid IRT_MODEL: {irt_model}. Rasch model only supports 1PL")
     
     is_valid = len(errors) == 0
     return is_valid, errors

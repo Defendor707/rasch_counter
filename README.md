@@ -4,7 +4,7 @@ A Telegram bot for IRT-based test analysis using the Rasch model. This bot proce
 
 ## Features
 
-- **2PL IRT Model**: Implements two-parameter logistic model with ability (θ), difficulty (β), and discrimination (a) parameters
+- **1PL IRT Model (Rasch Model)**: Implements one-parameter logistic model with ability (θ) and difficulty (β) parameters
 - **Excel Processing**: Handles Excel files with student responses (0/1 format)
 - **Statistical Analysis**: Provides comprehensive test analysis including:
   - Student ability estimates
@@ -107,11 +107,11 @@ docker-compose up -d
 - `TELEGRAM_CERT_FILE`: SSL certificate file (for webhook)
 - `TELEGRAM_KEY_FILE`: SSL key file (for webhook)
 - `LOG_LEVEL`: Logging level (default: INFO)
-- `IRT_MODEL`: IRT model type (1PL or 2PL, default: 1PL)
+- `IRT_MODEL`: IRT model type (1PL only, default: 1PL)
 
 ### Grade Standards
 
-The bot uses UZBMB (Uzbekistan Ministry of Higher Education) grade standards:
+The bot uses UZBMB (Uzbekistan Agency for Assessment of Knowledge and Skills) grade standards:
 
 - **A+**: 70+ points (1st grade - Excellent with honors)
 - **A**: 65-69.9 points (1st grade - Excellent)
@@ -233,7 +233,7 @@ For support and questions:
 
 ### Version 1.0.0
 - Initial release
-- 2PL IRT model implementation
+- 1PL IRT model (Rasch model) implementation
 - Excel and PDF export functionality
 - UZBMB grade standards
 - Admin panel

@@ -431,12 +431,9 @@ def process_exam_data(df, progress_callback=None):
     else:
         outputs = rasch_model(response_data)
 
-    # 1PL vs 2PL chiqishlarini moslashtirish
-    if isinstance(outputs, tuple) and len(outputs) == 3:
-        ability_estimates, item_difficulties, item_discriminations = outputs
-    else:
-        ability_estimates, item_difficulties = outputs
-        item_discriminations = None
+    # Rasch model (1PL) chiqishlari - faqat ability va difficulty
+    ability_estimates, item_difficulties = outputs
+    item_discriminations = None  # Rasch modelida discrimination parameter yo'q
     
     if progress_callback:
         progress_callback(50, "Baholar hisoblanmoqda...")
@@ -521,9 +518,9 @@ def process_exam_data(df, progress_callback=None):
     try:
         # Compute weighted correct count by item difficulty (harder items have larger weight)
         eps = 1e-6
-        # 2PL: weight = a * (max_beta - beta)
+        # Rasch model (1PL): weight = max_beta - beta (discrimination = 1)
         max_beta = float(np.max(item_difficulties)) if len(item_difficulties) > 0 else 0.0
-        weights = (max_beta - item_difficulties) * (item_discriminations if item_discriminations is not None else 1.0) + eps
+        weights = (max_beta - item_difficulties) + eps
         resp_mat = response_data.astype(np.float64)
         weighted_correct = np.dot(resp_mat, weights)
         results_df['Weighted Correct'] = weighted_correct
