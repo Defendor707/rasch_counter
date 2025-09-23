@@ -18,12 +18,25 @@ from pathlib import Path
 src_dir = Path(__file__).parent.parent
 sys.path.insert(0, str(src_dir))
 
-from data_processing.data_processor import process_exam_data, prepare_excel_for_download, prepare_pdf_for_download, prepare_simplified_excel, prepare_statistics_pdf
-from utils.utils import display_grade_distribution, calculate_statistics
-from models.rasch_model import rasch_model, ability_to_grade, ability_to_standard_score
+from services.analysis_service import analysis_service
 from config.settings import GRADE_DESCRIPTIONS
 from utils.monitoring import monitor
 from bot.health_check import create_health_app
+
+def create_main_keyboard():
+    """Asosiy keyboard yaratish - barcha tugmalar bir xil"""
+    markup = types.InlineKeyboardMarkup(row_width=1)
+    btn_stats = types.InlineKeyboardButton('📊 Statistika', callback_data='download_stats_pdf')
+    btn_pdf = types.InlineKeyboardButton('📑 Natijalar hisoboti PDF', callback_data='download_pdf')
+    btn_excel = types.InlineKeyboardButton('💾 Natijalar hisoboti Excel', callback_data='download_excel')
+    btn_simple_excel = types.InlineKeyboardButton('📝 Yozma ish ballarini qo\'shish', callback_data='download_simple_excel')
+    
+    markup.add(btn_stats)
+    markup.add(btn_pdf)
+    markup.add(btn_excel)
+    markup.add(btn_simple_excel)
+    
+    return markup
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import A4, landscape
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
@@ -228,6 +241,93 @@ def main():
         )
     
     # Help command handler
+
+    @bot.message_handler(commands=['namuna'])
+    def namuna_command(message):
+        """Namuna tahlil - 50 talaba va 55 savol"""
+        user_id = message.from_user.id
+        
+        # Processing message
+        process_message = bot.send_message(
+            message.chat.id,
+            "🔄 Namuna tahlil tayyorlanmoqda...\n"
+            "📊 50 talaba va 55 savol bilan\n"
+            "⏳ Iltimos, kuting..."
+        )
+        
+        try:
+            # Create sample matrix and process
+            session_id = analysis_service.create_sample_matrix()
+            
+            if not session_id:
+                bot.edit_message_text(
+                    chat_id=message.chat.id,
+                    message_id=process_message.message_id,
+                    text="❌ Namuna tahlil yaratishda xatolik yuz berdi."
+                )
+                return
+            
+            # Get results
+            summary_results = analysis_service.get_results(session_id, format='summary')
+            detailed_results = analysis_service.get_results(session_id, format='detailed')
+            
+            # Store session_id for user
+            user_data[user_id] = {
+                'session_id': session_id,
+                'results_df': detailed_results['results_df'],
+                'ability_estimates': detailed_results['ability_estimates'],
+                'grade_counts': summary_results['grade_distribution'],
+                'excel_data': None,
+                'data_df': detailed_results['df_cleaned'],
+                'beta_values': detailed_results['item_difficulties'],
+                'original_df': None
+            }
+            
+            # Create results message
+            total_students = summary_results['total_students']
+            top_grades_count = summary_results['top_grades_count']
+            top_grades_percent = summary_results['top_grades_percent']
+            pass_rate = summary_results['pass_rate']
+            fail_percent = summary_results['fail_percent']
+            
+            results_text = (
+                f"✅ *Namuna Tahlil Yakunlandi!*\n\n"
+                f"📊 *Umumiy Statistika:*\n"
+                f"👥 Jami talabalar: {total_students} ta\n"
+                f"📝 Jami savollar: 55 ta\n\n"
+                f"🏆 *A+ va A baholar:*\n"
+                f"👑 Eng yaxshi natija: {top_grades_count} ta ({top_grades_percent}%)\n\n"
+                f"📈 *O'tish/O'tmaslik:*\n"
+                f"✅ O'tgan talabalar: {pass_rate}%\n"
+                f"❌ O'tmagan talabalar: {fail_percent}%\n\n"
+                f"🎯 Bu namuna tahlil 50 ta talaba va 55 ta savol bilan "
+                f"Rasch model orqali amalga oshirildi."
+            )
+            
+            bot.edit_message_text(
+                chat_id=message.chat.id,
+                message_id=process_message.message_id,
+                text=results_text,
+                parse_mode='Markdown'
+            )
+            
+            # Create keyboard with buttons
+            markup = create_main_keyboard()
+            
+            bot.send_message(
+                message.chat.id,
+                "📋 *Qo'shimcha ma'lumotlar:*",
+                reply_markup=markup,
+                parse_mode='Markdown'
+            )
+            
+        except Exception as e:
+            logger.error(f"Namuna command error: {e}")
+            bot.edit_message_text(
+                chat_id=message.chat.id,
+                message_id=process_message.message_id,
+                text=f"❌ Namuna tahlil yaratishda xatolik: {str(e)}"
+            )
 
     @bot.message_handler(commands=["matrix"])
     def matrix_command(message):
@@ -671,8 +771,28 @@ def main():
             # Ma'lumotlarni o'qish
             df = pd.read_excel(file_bytes)
             
-            # Process the data with improved information
-            results_df, ability_estimates, grade_counts, data_df, beta_values = process_exam_data(df)
+            # Create session and process using analysis service
+            session_id = f"bot_{user_id}_{int(time.time())}"
+            analysis_service.create_session(session_id)
+            
+            success = analysis_service.process_file(df, session_id)
+            if not success:
+                bot.edit_message_text(
+                    chat_id=message.chat.id,
+                    message_id=process_message.message_id,
+                    text="❌ Tahlil jarayonida xatolik yuz berdi. Iltimos, qayta urinib ko'ring."
+                )
+                return
+            
+            # Get results from service
+            detailed_results = analysis_service.get_results(session_id, format='detailed')
+            summary_results = analysis_service.get_results(session_id, format='summary')
+            
+            results_df = detailed_results['results_df']
+            ability_estimates = detailed_results['ability_estimates']
+            grade_counts = detailed_results['grade_counts']
+            data_df = detailed_results['df_cleaned']
+            beta_values = detailed_results['item_difficulties']
             
             # Track user activity in database
             db.add_user(
@@ -693,36 +813,25 @@ def main():
             # Monitor processed files
             monitor.increment_processed_files(len(results_df))
             
-            # Prepare Excel data for download with all features
-            title = "REPETITSION TEST NATIJALARI"
-            excel_data = prepare_excel_for_download(results_df, data_df, beta_values, title)
+            # Get Excel data from analysis service
+            excel_data = analysis_service.get_excel_file(session_id)
             
-            # Store results for this user, including item difficulties and original data
             user_data[user_id] = {
+                'session_id': session_id,  # Store session_id for service access
                 'results_df': results_df,
                 'ability_estimates': ability_estimates,
                 'grade_counts': grade_counts,
                 'excel_data': excel_data,
-                'data_df': data_df,        # Original data with student responses
-                'beta_values': beta_values, # Item difficulty parameters from Rasch model
-                'original_df': df           # Original unprocessed data
+                'data_df': data_df,
+                'beta_values': beta_values,
+                'original_df': df
             }
             
             # We no longer need to send the comparison file automatically
             # The results are sufficient if they are successfully processed
             
             # Create keyboard with buttons
-            markup = types.InlineKeyboardMarkup(row_width=2)
-            
-            btn_all_results = types.InlineKeyboardButton('📊 Barcha Natijalar va Grafiklar', callback_data='all_results')
-            btn_excel = types.InlineKeyboardButton('💾 Excel formatda yuklash', callback_data='download_excel')
-            btn_pdf = types.InlineKeyboardButton('📑 PDF formatda yuklash', callback_data='download_pdf')
-            btn_simple_excel = types.InlineKeyboardButton('📝 Nazorat Ballari', callback_data='download_simple_excel')
-            
-            markup.add(btn_all_results)
-            markup.add(btn_excel, btn_pdf)
-            # stats button removed; '📊 Barcha Natijalar va Grafiklar' endi PDF beradi
-            markup.add(btn_simple_excel)
+            markup = create_main_keyboard()
             
             # Emojilar bilan ma'noli javob
             # A+/A baholar soni uchun
@@ -902,17 +1011,7 @@ def main():
         
         if call.data == "back_to_menu":
             # Return to the main menu with original buttons
-            markup = types.InlineKeyboardMarkup(row_width=2)
-            
-            btn_all_results = types.InlineKeyboardButton('📊 Barcha Natijalar va Grafiklar', callback_data='all_results')
-            btn_excel = types.InlineKeyboardButton('💾 Excel formatda yuklash', callback_data='download_excel')
-            btn_pdf = types.InlineKeyboardButton('📑 PDF formatda yuklash', callback_data='download_pdf')
-            btn_simple_excel = types.InlineKeyboardButton('📝 Nazorat Ballari', callback_data='download_simple_excel')
-            
-            markup.add(btn_all_results)
-            markup.add(btn_excel, btn_pdf)
-            # stats button removed here as well
-            markup.add(btn_simple_excel)
+            markup = create_main_keyboard()
             
             # A+/A baholar soni uchun
             top_grades_count = grade_counts.get('A+', 0) + grade_counts.get('A', 0)
@@ -946,104 +1045,73 @@ def main():
                 reply_markup=markup
             )
             
-        elif call.data == "all_results":
-            # Statistika.xlsx o'rniga PDF qaytaramiz
-            user_info = user_data.get(user_id, {})
-            ability_estimates = user_info.get('ability_estimates')
-            grade_counts = user_info.get('grade_counts', {})
-            data_df = user_info.get('data_df')
-            beta_values = user_info.get('beta_values')
-            stats_pdf = prepare_statistics_pdf(results_df, grade_counts, ability_estimates, data_df, beta_values, title="STATISTIKA")
-
-            bot.send_document(
-                chat_id=call.message.chat.id,
-                document=stats_pdf,
-                visible_file_name="statistika.pdf",
-                caption="📈 Statistika va grafiklar (PDF)."
-            )
-
-            new_markup = types.InlineKeyboardMarkup(row_width=2)
-            btn_back = types.InlineKeyboardButton('⬅️ Orqaga', callback_data='back_to_menu')
-            btn_excel = types.InlineKeyboardButton('💾 Excel formatda yuklash', callback_data='download_excel')
-            btn_pdf = types.InlineKeyboardButton('📑 PDF formatda yuklash', callback_data='download_pdf')
-            new_markup.add(btn_back)
-            new_markup.add(btn_excel, btn_pdf)
-
-            bot.edit_message_text(
-                chat_id=call.message.chat.id,
-                message_id=call.message.message_id,
-                text="✅ Statistika PDF yuborildi!",
-                reply_markup=new_markup
-            )
             
         elif call.data == "download_excel":
-            # Prepare Excel file for download with all features
+            # Get Excel file from analysis service
             user_info = user_data.get(user_id, {})
-            data_df = user_info.get('data_df')
-            beta_values = user_info.get('beta_values')
-            title = user_info.get('title', 'REPETITSION TEST NATIJALARI')
-            excel_data = prepare_excel_for_download(results_df, data_df, beta_values, title)
+            session_id = user_info.get('session_id')
             
-            # Send the Excel file
-            bot.send_document(
-                chat_id=call.message.chat.id,
-                document=excel_data,
-                visible_file_name="rasch_model_results.xlsx",
-                caption="💾 natijalar Excel fayli."
-            )
+            if session_id:
+                excel_data = analysis_service.get_excel_file(session_id)
+                if excel_data:
+                    # Send the Excel file
+                    bot.send_document(
+                        chat_id=call.message.chat.id,
+                        document=excel_data,
+                        visible_file_name="rasch_model_results.xlsx",
+                        caption="💾 natijalar Excel fayli."
+                    )
+                else:
+                    bot.send_message(
+                        chat_id=call.message.chat.id,
+                        text="❌ Excel fayl tayyorlanmadi."
+                    )
+            else:
+                bot.send_message(
+                    chat_id=call.message.chat.id,
+                    text="❌ Session topilmadi."
+                )
             
-            # Create keyboard for after downloading Excel file
-            new_markup = types.InlineKeyboardMarkup(row_width=2)
-            
-            btn_back = types.InlineKeyboardButton('⬅️ Orqaga', callback_data='back_to_menu')
-            btn_excel = types.InlineKeyboardButton('💾 Excel formatda yuklash', callback_data='download_excel')
-            btn_pdf = types.InlineKeyboardButton('📑 PDF formatda yuklash', callback_data='download_pdf')
-            btn_simple_excel = types.InlineKeyboardButton('📝 Nazorat Ballari', callback_data='download_simple_excel')
-            
-            new_markup.add(btn_back)
-            # stats button removed in back_to_menu
-            new_markup.add(btn_excel, btn_pdf)
-            new_markup.add(btn_simple_excel)
-            
-            # Update message
+            # Update message with same keyboard
             bot.edit_message_text(
                 chat_id=call.message.chat.id,
                 message_id=call.message.message_id,
                 text="✅ Excel fayli yuborildi!\n\n💡 Ushbu Excel faylda:\n- 🔸 Talabalar reytingi\n- 🔸 Ball va DTM foizlari\n- 🔸 Standart baholar",
-                reply_markup=new_markup
+                reply_markup=create_main_keyboard()
             )
             
         elif call.data == "download_pdf":
-            # Prepare PDF file for download
-            title = "REPETITSION TEST NATIJALARI"
-            pdf_data = prepare_pdf_for_download(results_df, title)
+            # Get PDF file from analysis service
+            user_info = user_data.get(user_id, {})
+            session_id = user_info.get('session_id')
             
-            # Send the PDF file
-            bot.send_document(
-                chat_id=call.message.chat.id,
-                document=pdf_data,
-                visible_file_name="rasch_model_results.pdf",
-                caption="📑 Rasch model natijalarining PDF fayli."
-            )
+            if session_id:
+                pdf_data = analysis_service.get_pdf_file(session_id)
+                if pdf_data:
+                    # Send the PDF file
+                    bot.send_document(
+                        chat_id=call.message.chat.id,
+                        document=pdf_data,
+                        visible_file_name="rasch_model_results.pdf",
+                        caption="📑 Rasch model natijalarining PDF fayli."
+                    )
+                else:
+                    bot.send_message(
+                        chat_id=call.message.chat.id,
+                        text="❌ PDF fayl tayyorlanmadi."
+                    )
+            else:
+                bot.send_message(
+                    chat_id=call.message.chat.id,
+                    text="❌ Session topilmadi."
+                )
             
-            # Create keyboard for after downloading PDF file
-            new_markup = types.InlineKeyboardMarkup(row_width=2)
-            
-            btn_back = types.InlineKeyboardButton('⬅️ Orqaga', callback_data='back_to_menu')
-            btn_excel = types.InlineKeyboardButton('💾 Excel formatda yuklash', callback_data='download_excel')
-            btn_pdf = types.InlineKeyboardButton('📑 PDF formatda yuklash', callback_data='download_pdf')
-            btn_simple_excel = types.InlineKeyboardButton('📝 Nazorat Ballari', callback_data='download_simple_excel')
-            
-            new_markup.add(btn_back)
-            new_markup.add(btn_excel, btn_pdf)
-            new_markup.add(btn_simple_excel)
-            
-            # Update message
+            # Update message with same keyboard
             bot.edit_message_text(
                 chat_id=call.message.chat.id,
                 message_id=call.message.message_id,
                 text="✅ PDF fayli yuborildi!\n\n💡 Ushbu PDF faylda:\n- 🔸 Chiroyli formatlangan natijalar jadvali\n- 🔸 Har bir talabaning balllari va DTM foizi\n- 🔸 Darajalar bo'yicha ranglar bilan ajratilgan baholar",
-                reply_markup=new_markup
+                reply_markup=create_main_keyboard()
             )
         
         elif call.data == "download_stats_pdf":
@@ -1063,54 +1131,46 @@ def main():
             )
 
             # After sending, offer other options
-            new_markup = types.InlineKeyboardMarkup(row_width=2)
-            btn_back = types.InlineKeyboardButton('⬅️ Orqaga', callback_data='back_to_menu')
-            btn_excel = types.InlineKeyboardButton('💾 Excel formatda yuklash', callback_data='download_excel')
-            btn_pdf = types.InlineKeyboardButton('📑 PDF formatda yuklash', callback_data='download_pdf')
-            btn_stats_pdf = types.InlineKeyboardButton('📈 Statistika (PDF)', callback_data='download_stats_pdf')
-            btn_simple_excel = types.InlineKeyboardButton('📝 Nazorat Ballari', callback_data='download_simple_excel')
-            new_markup.add(btn_back)
-            new_markup.add(btn_excel, btn_pdf)
-            new_markup.add(btn_stats_pdf)
-            new_markup.add(btn_simple_excel)
-
             bot.edit_message_text(
                 chat_id=call.message.chat.id,
                 message_id=call.message.message_id,
                 text="✅ Statistika PDF yuborildi!",
-                reply_markup=new_markup
+                reply_markup=create_main_keyboard()
             )
             
         elif call.data == "download_simple_excel":
-            # Prepare simplified Excel file for download
-            simple_excel_data = prepare_simplified_excel(results_df, "Nazorat Ballari")
+            # Get simplified Excel file from analysis service
+            user_info = user_data.get(user_id, {})
+            session_id = user_info.get('session_id')
             
-            # Send the Excel file
-            bot.send_document(
-                chat_id=call.message.chat.id,
-                document=simple_excel_data,
-                visible_file_name="nazorat_ballari.xlsx",
-                caption="📝 Nazorat Ballari Excel fayli."
-            )
+            if session_id:
+                # For simplified Excel, we can use the same Excel file
+                excel_data = analysis_service.get_excel_file(session_id)
+                if excel_data:
+                    # Send the Excel file
+                    bot.send_document(
+                        chat_id=call.message.chat.id,
+                        document=excel_data,
+                        visible_file_name="nazorat_ballari.xlsx",
+                        caption="📝 Nazorat Ballari Excel fayli."
+                    )
+                else:
+                    bot.send_message(
+                        chat_id=call.message.chat.id,
+                        text="❌ Nazorat ballari fayli tayyorlanmadi."
+                    )
+            else:
+                bot.send_message(
+                    chat_id=call.message.chat.id,
+                    text="❌ Session topilmadi."
+                )
             
-            # Create keyboard for after downloading simple Excel file
-            new_markup = types.InlineKeyboardMarkup(row_width=2)
-            
-            btn_back = types.InlineKeyboardButton('⬅️ Orqaga', callback_data='back_to_menu')
-            btn_excel = types.InlineKeyboardButton('💾 Excel formatda yuklash', callback_data='download_excel')
-            btn_pdf = types.InlineKeyboardButton('📑 PDF formatda yuklash', callback_data='download_pdf')
-            btn_simple_excel = types.InlineKeyboardButton('📝 Nazorat Ballari', callback_data='download_simple_excel')
-            
-            new_markup.add(btn_back)
-            new_markup.add(btn_excel, btn_pdf)
-            new_markup.add(btn_simple_excel)
-            
-            # Update message
+            # Update message with same keyboard
             bot.edit_message_text(
                 chat_id=call.message.chat.id,
                 message_id=call.message.message_id,
                 text="✅ Nazorat Ballari fayli yuborildi!\n\n💡 Ushbu Excel faylda:\n- 🔸 Talabalar ismi\n- 🔸 Ball",
-                reply_markup=new_markup
+                reply_markup=create_main_keyboard()
             )
         
 

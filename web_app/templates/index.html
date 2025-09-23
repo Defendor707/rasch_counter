@@ -1,0 +1,652 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rasch Counter - Web App</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #333;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        .header {
+            text-align: center;
+            color: white;
+            margin-bottom: 40px;
+        }
+        
+        .header h1 {
+            font-size: 3rem;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+        
+        .header p {
+            font-size: 1.2rem;
+            opacity: 0.9;
+        }
+        
+        .main-content {
+            background: white;
+            border-radius: 15px;
+            padding: 40px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            margin-bottom: 30px;
+        }
+        
+        .upload-section {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+        
+        .upload-area {
+            border: 3px dashed #667eea;
+            border-radius: 15px;
+            padding: 60px 20px;
+            background: #f8f9ff;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+        
+        .upload-area:hover {
+            border-color: #5a67d8;
+            background: #f0f4ff;
+        }
+        
+        .upload-area.dragover {
+            border-color: #5a67d8;
+            background: #e6f3ff;
+            transform: scale(1.02);
+        }
+        
+        .upload-icon {
+            font-size: 4rem;
+            color: #667eea;
+            margin-bottom: 20px;
+        }
+        
+        .upload-text {
+            font-size: 1.2rem;
+            color: #4a5568;
+            margin-bottom: 20px;
+        }
+        
+        .file-input {
+            display: none;
+        }
+        
+        .btn {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 25px;
+            font-size: 1rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: inline-block;
+            margin: 10px;
+        }
+        
+        .btn:hover {
+            background: #5a67d8;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+        }
+        
+        .btn:disabled {
+            background: #a0aec0;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+        
+        .btn-secondary {
+            background: #48bb78;
+        }
+        
+        .btn-secondary:hover {
+            background: #38a169;
+        }
+        
+        .progress-section {
+            display: none;
+            margin: 30px 0;
+        }
+        
+        .progress-bar {
+            width: 100%;
+            height: 20px;
+            background: #e2e8f0;
+            border-radius: 10px;
+            overflow: hidden;
+            margin: 20px 0;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #667eea, #764ba2);
+            width: 0%;
+            transition: width 0.3s ease;
+            border-radius: 10px;
+        }
+        
+        .progress-text {
+            text-align: center;
+            font-weight: bold;
+            color: #4a5568;
+        }
+        
+        .results-section {
+            display: none;
+            margin-top: 40px;
+        }
+        
+        .results-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin: 30px 0;
+        }
+        
+        .result-card {
+            background: #f8f9ff;
+            padding: 25px;
+            border-radius: 10px;
+            border-left: 4px solid #667eea;
+        }
+        
+        .result-card h3 {
+            color: #667eea;
+            margin-bottom: 15px;
+            font-size: 1.3rem;
+        }
+        
+        .grade-distribution {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+        
+        .grade-item {
+            text-align: center;
+            padding: 15px;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        .grade-item .grade {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: #667eea;
+        }
+        
+        .grade-item .count {
+            font-size: 0.9rem;
+            color: #666;
+            margin-top: 5px;
+        }
+        
+        .table-container {
+            overflow-x: auto;
+            margin: 30px 0;
+        }
+        
+        .results-table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        .results-table th,
+        .results-table td {
+            padding: 12px 15px;
+            text-align: left;
+            border-bottom: 1px solid #e2e8f0;
+        }
+        
+        .results-table th {
+            background: #667eea;
+            color: white;
+            font-weight: bold;
+        }
+        
+        .results-table tr:hover {
+            background: #f7fafc;
+        }
+        
+        .alert {
+            padding: 15px 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+            font-weight: bold;
+        }
+        
+        .alert-success {
+            background: #c6f6d5;
+            color: #22543d;
+            border: 1px solid #9ae6b4;
+        }
+        
+        .alert-error {
+            background: #fed7d7;
+            color: #742a2a;
+            border: 1px solid #feb2b2;
+        }
+        
+        .alert-info {
+            background: #bee3f8;
+            color: #2a4365;
+            border: 1px solid #90cdf4;
+        }
+        
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .features {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin: 40px 0;
+        }
+        
+        .feature {
+            text-align: center;
+            padding: 30px 20px;
+            background: #f8f9ff;
+            border-radius: 10px;
+            border-top: 4px solid #667eea;
+        }
+        
+        .feature i {
+            font-size: 3rem;
+            color: #667eea;
+            margin-bottom: 20px;
+        }
+        
+        .feature h3 {
+            color: #4a5568;
+            margin-bottom: 15px;
+        }
+        
+        .difficulty-badge {
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 0.8rem;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+        
+        .difficulty-oson {
+            background: #c6f6d5;
+            color: #22543d;
+        }
+        
+        .difficulty-o'rta {
+            background: #fef5e7;
+            color: #744210;
+        }
+        
+        .difficulty-qiyin {
+            background: #fed7d7;
+            color: #742a2a;
+        }
+        
+        @media (max-width: 768px) {
+            .header h1 {
+                font-size: 2rem;
+            }
+            
+            .main-content {
+                padding: 20px;
+            }
+            
+            .upload-area {
+                padding: 40px 15px;
+            }
+            
+            .results-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1><i class="fas fa-chart-line"></i> Rasch Counter</h1>
+            <p>Professional test analysis using Rasch model</p>
+        </div>
+        
+        <div class="main-content">
+            <div class="upload-section">
+                <div class="upload-area" id="uploadArea">
+                    <div class="upload-icon">
+                        <i class="fas fa-cloud-upload-alt"></i>
+                    </div>
+                    <div class="upload-text">
+                        Excel faylni bu yerga torting yoki tanlang
+                    </div>
+                    <button class="btn" onclick="document.getElementById('fileInput').click()">
+                        <i class="fas fa-file-excel"></i> Fayl tanlash
+                    </button>
+                    <input type="file" id="fileInput" class="file-input" accept=".xlsx,.xls">
+                </div>
+                
+                <div style="margin-top: 20px;">
+                    <button class="btn btn-secondary" onclick="showSampleResults()">
+                        <i class="fas fa-eye"></i> Namuna tahlil (50 talaba, 55 savol)
+                    </button>
+                </div>
+            </div>
+            
+            <div class="progress-section" id="progressSection">
+                <div class="progress-bar">
+                    <div class="progress-fill" id="progressFill"></div>
+                </div>
+                <div class="progress-text" id="progressText">Tahlil boshlandi...</div>
+            </div>
+            
+            <div class="results-section" id="resultsSection">
+                <h2><i class="fas fa-chart-bar"></i> Tahlil Natijalari</h2>
+                
+                <div class="results-grid" id="resultsGrid">
+                    <!-- Results will be populated here -->
+                </div>
+                
+                <div style="text-align: center; margin: 30px 0;">
+                    <button class="btn" onclick="downloadResults('excel')">
+                        <i class="fas fa-file-excel"></i> Excel hisobot
+                    </button>
+                    <button class="btn" onclick="downloadResults('pdf')">
+                        <i class="fas fa-file-pdf"></i> PDF hisobot
+                    </button>
+                </div>
+            </div>
+            
+            <div class="features">
+                <div class="feature">
+                    <i class="fas fa-brain"></i>
+                    <h3>Rasch Model</h3>
+                    <p>1PL IRT model asosida aniq qobiliyat baholash</p>
+                </div>
+                <div class="feature">
+                    <i class="fas fa-chart-pie"></i>
+                    <h3>Statistik Tahlil</h3>
+                    <p>To'liq statistik ma'lumotlar va grafiklar</p>
+                </div>
+                <div class="feature">
+                    <i class="fas fa-trophy"></i>
+                    <h3>UZBMB Standartlari</h3>
+                    <p>Rasmiy baholash standartlariga muvofiq</p>
+                </div>
+                <div class="feature">
+                    <i class="fas fa-download"></i>
+                    <h3>Export Formats</h3>
+                    <p>Excel va PDF formatda hisobotlar</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        let currentSessionId = null;
+        let progressInterval = null;
+        
+        // File upload handling
+        const uploadArea = document.getElementById('uploadArea');
+        const fileInput = document.getElementById('fileInput');
+        
+        uploadArea.addEventListener('click', () => fileInput.click());
+        
+        uploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadArea.classList.add('dragover');
+        });
+        
+        uploadArea.addEventListener('dragleave', () => {
+            uploadArea.classList.remove('dragover');
+        });
+        
+        uploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadArea.classList.remove('dragover');
+            
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                handleFile(files[0]);
+            }
+        });
+        
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                handleFile(e.target.files[0]);
+            }
+        });
+        
+        function handleFile(file) {
+            if (!file.name.match(/\.(xlsx|xls)$/)) {
+                showAlert('Faqat Excel fayllar (.xlsx, .xls) qabul qilinadi', 'error');
+                return;
+            }
+            
+            const formData = new FormData();
+            formData.append('file', file);
+            
+            showProgress();
+            
+            fetch('/upload', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    currentSessionId = data.session_id;
+                    startProgressMonitoring();
+                } else {
+                    showAlert(data.error, 'error');
+                    hideProgress();
+                }
+            })
+            .catch(error => {
+                showAlert('Yuklash xatoligi: ' + error.message, 'error');
+                hideProgress();
+            });
+        }
+        
+        function showSampleResults() {
+            showAlert('Namuna natijalar yuklanmoqda...', 'info');
+            
+            fetch('/api/sample')
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    currentSessionId = data.session_id;  // Store session_id for downloads
+                    displayResults(data.results);
+                    document.getElementById('resultsSection').style.display = 'block';
+                    showAlert('Namuna natijalar ko\'rsatildi!', 'success');
+                } else {
+                    showAlert(data.error, 'error');
+                }
+            })
+            .catch(error => {
+                showAlert('Namuna natijalar yuklash xatoligi: ' + error.message, 'error');
+            });
+        }
+        
+        function startProgressMonitoring() {
+            if (progressInterval) {
+                clearInterval(progressInterval);
+            }
+            
+            progressInterval = setInterval(() => {
+                fetch(`/status/${currentSessionId}`)
+                .then(response => response.json())
+                .then(data => {
+                    updateProgress(data.progress, data.message);
+                    
+                    if (data.status === 'completed') {
+                        clearInterval(progressInterval);
+                        loadResults();
+                    } else if (data.status === 'error') {
+                        clearInterval(progressInterval);
+                        showAlert(data.message, 'error');
+                        hideProgress();
+                    }
+                })
+                .catch(error => {
+                    clearInterval(progressInterval);
+                    showAlert('Status tekshirish xatoligi: ' + error.message, 'error');
+                    hideProgress();
+                });
+            }, 1000);
+        }
+        
+        function updateProgress(percent, message) {
+            document.getElementById('progressFill').style.width = percent + '%';
+            document.getElementById('progressText').textContent = message;
+        }
+        
+        function showProgress() {
+            document.getElementById('progressSection').style.display = 'block';
+            document.getElementById('resultsSection').style.display = 'none';
+        }
+        
+        function hideProgress() {
+            document.getElementById('progressSection').style.display = 'none';
+        }
+        
+        function loadResults() {
+            fetch(`/results/${currentSessionId}`)
+            .then(response => response.json())
+            .then(data => {
+                displayResults(data);
+                hideProgress();
+                document.getElementById('resultsSection').style.display = 'block';
+            })
+            .catch(error => {
+                showAlert('Natijalarni yuklash xatoligi: ' + error.message, 'error');
+                hideProgress();
+            });
+        }
+        
+        function displayResults(data) {
+            const resultsGrid = document.getElementById('resultsGrid');
+            
+            // Summary cards
+            resultsGrid.innerHTML = `
+                <div class="result-card">
+                    <h3><i class="fas fa-users"></i> Umumiy Ma'lumotlar</h3>
+                    <p><strong>Talabalar soni:</strong> ${data.summary.total_students}</p>
+                    <p><strong>Savollar soni:</strong> ${data.summary.total_questions}</p>
+                    <p><strong>O'rtacha ball:</strong> ${data.summary.average_score.toFixed(1)}</p>
+                    <p><strong>Eng yuqori ball:</strong> ${data.summary.highest_score.toFixed(1)}</p>
+                    <p><strong>Eng past ball:</strong> ${data.summary.lowest_score.toFixed(1)}</p>
+                </div>
+                
+                <div class="result-card">
+                    <h3><i class="fas fa-trophy"></i> Baho Taqsimoti</h3>
+                    <div class="grade-distribution">
+                        ${Object.entries(data.summary.grade_distribution).map(([grade, count]) => `
+                            <div class="grade-item">
+                                <div class="grade">${grade}</div>
+                                <div class="count">${count} talaba</div>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+                
+                <div class="result-card">
+                    <h3><i class="fas fa-chart-line"></i> Savol Qiyinliklari</h3>
+                    <p><strong>Eng oson savol:</strong> ${data.item_difficulties.min.toFixed(3)}</p>
+                    <p><strong>Eng qiyin savol:</strong> ${data.item_difficulties.max.toFixed(3)}</p>
+                    <p><strong>O'rtacha qiyinlik:</strong> ${data.item_difficulties.mean.toFixed(3)}</p>
+                    <p><strong>Standart og'ish:</strong> ${data.item_difficulties.std.toFixed(3)}</p>
+                </div>
+                
+                <div class="result-card">
+                    <h3><i class="fas fa-question-circle"></i> Savol Qiyinliklari</h3>
+                    <div class="table-container">
+                        <table class="results-table">
+                            <thead>
+                                <tr>
+                                    <th>Savol</th>
+                                    <th>Qiyinlik</th>
+                                    <th>Daraja</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${data.item_difficulties.items.map(item => `
+                                    <tr>
+                                        <td>${item.Question}</td>
+                                        <td>${item.Difficulty}</td>
+                                        <td><span class="difficulty-badge difficulty-${item.Difficulty_Level.toLowerCase()}">${item.Difficulty_Level}</span></td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            `;
+        }
+        
+        function downloadResults(fileType) {
+            if (!currentSessionId) {
+                showAlert('Yuklab olish uchun avval fayl yuklang yoki namuna natijalarni ko\'ring', 'error');
+                return;
+            }
+            
+            window.open(`/download/${currentSessionId}/${fileType}`, '_blank');
+        }
+        
+        function showAlert(message, type) {
+            const alertDiv = document.createElement('div');
+            alertDiv.className = `alert alert-${type}`;
+            alertDiv.innerHTML = message;
+            
+            const container = document.querySelector('.main-content');
+            container.insertBefore(alertDiv, container.firstChild);
+            
+            setTimeout(() => {
+                alertDiv.remove();
+            }, 5000);
+        }
+    </script>
+</body>
+</html>

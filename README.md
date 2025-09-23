@@ -1,9 +1,10 @@
-# Rasch Counter Bot
+# Rasch Counter - Professional Test Analysis Platform
 
-A Telegram bot for IRT-based test analysis using the Rasch model. This bot processes Excel files containing student test responses and provides detailed analysis including ability estimates, item difficulty analysis, and grade assignments according to UZBMB standards.
+A comprehensive platform for IRT-based test analysis using the Rasch model. Available as Telegram bot, web application, and mobile app for maximum accessibility.
 
-## Features
+## 🌟 Features
 
+### Core Analysis Engine
 - **1PL IRT Model (Rasch Model)**: Implements one-parameter logistic model with ability (θ) and difficulty (β) parameters
 - **Excel Processing**: Handles Excel files with student responses (0/1 format)
 - **Statistical Analysis**: Provides comprehensive test analysis including:
@@ -11,20 +12,31 @@ A Telegram bot for IRT-based test analysis using the Rasch model. This bot proce
   - Item difficulty analysis
   - Grade distribution
   - Pass/fail statistics
+
+### Multiple Interfaces
+- **🤖 Telegram Bot**: Mobile-friendly bot for quick analysis
+- **🌐 Web Application**: Modern responsive web interface
+- **📱 Mobile App**: Native React Native app for iOS/Android
+
+### Export & Reporting
 - **Multiple Export Formats**: 
   - Excel with detailed results and charts
   - PDF reports with formatted tables
   - Simplified Excel for quick reference
 - **UZBMB Standards**: Grade assignments follow official UZBMB standards
-- **Admin Panel**: Broadcast messages to all users
+- **Real-time Processing**: Live progress tracking and status updates
+
+### Additional Features
+- **Admin Panel**: Broadcast messages to all users (Telegram bot)
 - **Database Tracking**: SQLite database for user and usage statistics
+- **Sample Data**: Generate test data for demonstration
 
 ## Project Structure
 
 ```
 rasch_counter/
-├── src/                          # Source code
-│   ├── bot/                      # Bot-related modules
+├── src/                          # Core source code
+│   ├── bot/                      # Telegram bot modules
 │   │   ├── telegram_bot.py       # Main bot implementation
 │   │   └── bot_database.py       # Database operations
 │   ├── models/                   # Mathematical models
@@ -33,69 +45,93 @@ rasch_counter/
 │   │   └── data_processor.py     # Excel processing and analysis
 │   ├── utils/                    # Utility functions
 │   │   └── utils.py              # Helper functions
-│   └── main.py                   # Application entry point
+│   └── main.py                   # Telegram bot entry point
+├── web_app/                      # Web application
+│   ├── app.py                    # Flask web application
+│   ├── templates/                # HTML templates
+│   │   └── index.html            # Main web interface
+│   ├── requirements.txt          # Web app dependencies
+│   └── run_web.py               # Web app launcher
+├── mobile_app/                   # Mobile application
+│   ├── App.tsx                   # React Native main component
+│   ├── package.json              # Mobile app dependencies
+│   └── README.md                 # Mobile app documentation
 ├── config/                       # Configuration files
 │   ├── settings.py               # Application settings
 │   └── logging.py                # Logging configuration
-├── tests/                        # Test files
-│   ├── test_rasch_model.py       # Model tests
-│   └── test_real_data.py         # Real data tests
-├── deployment/                   # Deployment files
-│   ├── docker-compose.yml        # Docker Compose configuration
-│   ├── Dockerfile                # Docker configuration
-│   └── rasch-bot.service         # Systemd service file
 ├── docs/                         # Documentation
 ├── logs/                         # Log files (created at runtime)
 ├── .data/                        # Database and data files (created at runtime)
-├── assets/                       # Static assets
-├── requirements.txt              # Python dependencies
-├── setup.py                      # Package setup
-├── pyproject.toml                # Project configuration
+├── requirements.txt              # Core Python dependencies
+├── bot.py                        # Telegram bot launcher
+├── public_website.py             # Public information website
 └── README.md                     # This file
 ```
 
-## Installation
+## 🚀 Quick Start
 
-### Prerequisites
+### Option 1: Telegram Bot (Recommended for beginners)
 
-- Python 3.11 or higher
-- pip package manager
-
-### Local Installation
-
-1. Clone the repository:
-```bash
-git clone <repository-url>
-cd rasch_counter
-```
-
-2. Install dependencies:
+1. **Install dependencies:**
 ```bash
 pip install -r requirements.txt
 ```
 
-3. Set environment variables:
+2. **Set up Telegram bot:**
 ```bash
 export TELEGRAM_TOKEN="your_telegram_bot_token"
 ```
 
-4. Run the bot:
+3. **Run the bot:**
 ```bash
-python src/main.py
+python bot.py
 ```
 
-### Docker Installation
+4. **Start using:** Send `/start` to your bot on Telegram
 
-1. Build the Docker image:
+### Option 2: Web Application
+
+1. **Install web dependencies:**
 ```bash
-docker build -t rasch-counter-bot .
+pip install -r web_app/requirements.txt
 ```
 
-2. Run with Docker Compose:
+2. **Run web app:**
 ```bash
-cd deployment
-docker-compose up -d
+python web_app/run_web.py
 ```
+
+3. **Open browser:** Navigate to `http://localhost:5000`
+
+### Option 3: Mobile App
+
+1. **Install React Native CLI:**
+```bash
+npm install -g react-native-cli
+```
+
+2. **Install dependencies:**
+```bash
+cd mobile_app
+npm install
+```
+
+3. **Run on device:**
+```bash
+# Android
+npm run android
+
+# iOS (macOS only)
+npm run ios
+```
+
+## 📋 Prerequisites
+
+- **Python 3.11+** (for bot and web app)
+- **Node.js 16+** (for mobile app)
+- **React Native CLI** (for mobile development)
+- **Android Studio** (for Android development)
+- **Xcode** (for iOS development, macOS only)
 
 ## Configuration
 
