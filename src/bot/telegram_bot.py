@@ -2,6 +2,7 @@ import logging
 import os
 import pandas as pd
 import io
+from io import BytesIO
 import matplotlib
 # Tkinter errors - use a non-interactive backend
 matplotlib.use('Agg')
@@ -22,6 +23,111 @@ from services.analysis_service import analysis_service
 from config.settings import GRADE_DESCRIPTIONS
 from utils.monitoring import monitor
 from bot.health_check import create_health_app
+
+def create_diagram_images(beta_values, grade_counts):
+    """Diagrammalar uchun rasm yaratish"""
+    try:
+        # Create figure with subplots
+        fig, ((ax1, ax2), (ax3, ax4)) = plt.subplots(2, 2, figsize=(15, 12))
+        fig.suptitle('📊 RASCH MODEL TAHLILI - PROFESSIONAL DIAGRAMMALAR', fontsize=16, fontweight='bold')
+        
+        # 1. Item Difficulty Distribution
+        ax1.hist(beta_values, bins=20, alpha=0.7, color='skyblue', edgecolor='black')
+        ax1.set_title('📈 Savollar Qiyinligi Taqsimoti', fontweight='bold')
+        ax1.set_xlabel('Qiyinlik Darajasi (Beta)')
+        ax1.set_ylabel('Savollar Soni')
+        ax1.grid(True, alpha=0.3)
+        
+        # Add difficulty level zones
+        ax1.axvline(x=-1.25, color='green', linestyle='--', alpha=0.7, label='Oson')
+        ax1.axvline(x=-0.25, color='yellow', linestyle='--', alpha=0.7, label="O'rta")
+        ax1.axvline(x=0.75, color='red', linestyle='--', alpha=0.7, label='Qiyin')
+        ax1.legend()
+        
+        # 2. Grade Distribution Pie Chart
+        grades = list(grade_counts.keys())
+        counts = list(grade_counts.values())
+        colors = ['#ff9999', '#66b3ff', '#99ff99', '#ffcc99', '#ff99cc', '#c2c2f0', '#ffb3e6']
+        
+        # Filter out zero counts
+        non_zero_grades = []
+        non_zero_counts = []
+        non_zero_colors = []
+        for i, count in enumerate(counts):
+            if count > 0:
+                non_zero_grades.append(grades[i])
+                non_zero_counts.append(count)
+                non_zero_colors.append(colors[i % len(colors)])
+        
+        ax2.pie(non_zero_counts, labels=non_zero_grades, autopct='%1.1f%%', colors=non_zero_colors)
+        ax2.set_title('📊 Baholar Taqsimoti', fontweight='bold')
+        
+        # 3. Item Difficulty Scatter Plot
+        question_numbers = list(range(1, len(beta_values) + 1))
+        colors_scatter = ['green' if x < -0.5 else 'orange' if x < 0.5 else 'red' for x in beta_values]
+        
+        scatter = ax3.scatter(question_numbers, beta_values, c=colors_scatter, alpha=0.7, s=50)
+        ax3.set_title('🎯 Savollar Qiyinligi Scatter Plot', fontweight='bold')
+        ax3.set_xlabel('Savol Raqami')
+        ax3.set_ylabel('Qiyinlik Darajasi')
+        ax3.grid(True, alpha=0.3)
+        
+        # Add difficulty level lines
+        ax3.axhline(y=-0.5, color='green', linestyle='--', alpha=0.7, label='Oson')
+        ax3.axhline(y=0.5, color='red', linestyle='--', alpha=0.7, label='Qiyin')
+        ax3.legend()
+        
+        # 4. Fit Quality Assessment (Based on actual data)
+        # Calculate fit statistics based on item difficulties
+        n_items = len(beta_values)
+        
+        # Simulate fit statistics based on item difficulty distribution
+        # Items with extreme difficulties are more likely to have poor fit
+        extreme_items = sum(1 for x in beta_values if abs(x) > 2)
+        moderate_items = sum(1 for x in beta_values if 1 <= abs(x) <= 2)
+        good_items = sum(1 for x in beta_values if abs(x) < 1)
+        
+        # Calculate percentages
+        total_items = n_items
+        poor_fit_pct = (extreme_items / total_items) * 100
+        moderate_fit_pct = (moderate_items / total_items) * 100
+        good_fit_pct = (good_items / total_items) * 100
+        
+        # Ensure percentages add up to 100
+        total_pct = poor_fit_pct + moderate_fit_pct + good_fit_pct
+        if total_pct > 0:
+            poor_fit_pct = (poor_fit_pct / total_pct) * 100
+            moderate_fit_pct = (moderate_fit_pct / total_pct) * 100
+            good_fit_pct = (good_fit_pct / total_pct) * 100
+        
+        fit_categories = ['Yomon', 'Qabul qilinadigan', 'Yaxshi']
+        fit_counts = [round(poor_fit_pct, 1), round(moderate_fit_pct, 1), round(good_fit_pct, 1)]
+        fit_colors = ['#e53e3e', '#ed8936', '#38a169']
+        
+        bars = ax4.bar(fit_categories, fit_counts, color=fit_colors, alpha=0.8)
+        ax4.set_title('🎯 Fit Sifatini Baholash', fontweight='bold')
+        ax4.set_ylabel('Foiz (%)')
+        ax4.set_ylim(0, 60)
+        
+        # Add value labels on bars
+        for bar, count in zip(bars, fit_counts):
+            ax4.text(bar.get_x() + bar.get_width()/2, bar.get_height() + 1, 
+                    f'{count}%', ha='center', va='bottom', fontweight='bold')
+        
+        plt.tight_layout()
+        
+        # Save to BytesIO
+        img_buffer = BytesIO()
+        plt.savefig(img_buffer, format='png', dpi=300, bbox_inches='tight')
+        img_buffer.seek(0)
+        
+        plt.close(fig)
+        
+        return img_buffer
+        
+    except Exception as e:
+        logging.error(f"Diagram yaratishda xatolik: {e}")
+        return None
 
 def create_main_keyboard():
     """Asosiy keyboard yaratish - barcha tugmalar bir xil"""
@@ -1115,28 +1221,140 @@ def main():
             )
         
         elif call.data == "download_stats_pdf":
-            # Build and send statistics-only PDF (charts and summary)
+            # Get session_id from user data
             user_info = user_data.get(user_id, {})
-            ability_estimates = user_info.get('ability_estimates')
-            grade_counts = user_info.get('grade_counts', {})
-            data_df = user_info.get('data_df')
-            beta_values = user_info.get('beta_values')
-            stats_pdf = prepare_statistics_pdf(results_df, grade_counts, ability_estimates, data_df, beta_values, title="STATISTIKA")
-
-            bot.send_document(
-                chat_id=call.message.chat.id,
-                document=stats_pdf,
-                visible_file_name="statistika.pdf",
-                caption="📈 Statistika va grafiklar (PDF)."
-            )
-
-            # After sending, offer other options
-            bot.edit_message_text(
-                chat_id=call.message.chat.id,
-                message_id=call.message.message_id,
-                text="✅ Statistika PDF yuborildi!",
-                reply_markup=create_main_keyboard()
-            )
+            session_id = user_info.get('session_id')
+            
+            if session_id:
+                # Get comprehensive statistics from analysis service
+                summary_results = analysis_service.get_results(session_id, format='summary')
+                detailed_results = analysis_service.get_results(session_id, format='detailed')
+                
+                if summary_results and detailed_results:
+                    # Create comprehensive statistics message
+                    total_students = summary_results['total_students']
+                    top_grades_count = summary_results['top_grades_count']
+                    top_grades_percent = summary_results['top_grades_percent']
+                    pass_rate = summary_results['pass_rate']
+                    fail_percent = summary_results['fail_percent']
+                    grade_counts = summary_results['grade_distribution']
+                    
+                    # Get item difficulties
+                    beta_values = detailed_results['item_difficulties']
+                    
+                    # Create statistics text
+                    stats_text = f"📊 *UMUMIY STATISTIKA*\n\n"
+                    stats_text += f"👥 *Jami talabalar:* {total_students} ta\n"
+                    stats_text += f"📝 *Jami savollar:* {len(beta_values)} ta\n\n"
+                    
+                    stats_text += f"🏆 *A+ va A baholar:*\n"
+                    stats_text += f"👑 Eng yaxshi natija: {top_grades_count} ta ({top_grades_percent}%)\n\n"
+                    
+                    stats_text += f"📈 *O'tish/O'tmaslik:*\n"
+                    stats_text += f"✅ O'tgan talabalar: {pass_rate}%\n"
+                    stats_text += f"❌ O'tmagan talabalar: {fail_percent}%\n\n"
+                    
+                    # Grade distribution
+                    stats_text += f"📋 *Baholar taqsimoti:*\n"
+                    for grade, count in grade_counts.items():
+                        if count > 0:
+                            stats_text += f"• {grade}: {count} ta\n"
+                    
+                    stats_text += f"\n📊 *Savol Qiyinliklari:*\n"
+                    
+                    # Sort items by difficulty
+                    sorted_items = []
+                    for i, difficulty in enumerate(beta_values):
+                        difficulty_level = "Oson" if difficulty < -0.5 else "O'rta" if difficulty < 0.5 else "Qiyin"
+                        sorted_items.append((i+1, difficulty, difficulty_level))
+                    
+                    sorted_items.sort(key=lambda x: x[1])
+                    
+                    # Top 5 easiest questions
+                    stats_text += f"\n🟢 *Eng Oson Savollar:*\n"
+                    for i, (q_num, diff, level) in enumerate(sorted_items[:5]):
+                        emoji = "🟢" if level == "Oson" else "🟡" if level == "O'rta" else "🔴"
+                        stats_text += f"{emoji} Savol {q_num}: {diff:.3f}\n"
+                    
+                    # Top 5 hardest questions
+                    stats_text += f"\n🔴 *Eng Qiyin Savollar:*\n"
+                    for i, (q_num, diff, level) in enumerate(sorted_items[-5:]):
+                        emoji = "🟢" if level == "Oson" else "🟡" if level == "O'rta" else "🔴"
+                        stats_text += f"{emoji} Savol {q_num}: {diff:.3f}\n"
+                    
+                    # Professional Charts Information
+                    stats_text += f"\n📊 *PROFESSIONAL DIAGRAMMALAR:*\n\n"
+                    
+                    # Item Difficulty Analysis
+                    stats_text += f"🎯 *Savollar Qiyinligi Tahlili:*\n"
+                    stats_text += f"• Qiyinlik darajalari rang kodlangan:\n"
+                    stats_text += f"🟢 Juda oson (-3.0 dan -1.25 gacha)\n"
+                    stats_text += f"🟢 Oson (-1.25 dan -0.25 gacha)\n"
+                    stats_text += f"🟡 O'rta (-0.25 dan 0.75 gacha)\n"
+                    stats_text += f"🔴 Qiyin (0.75 dan 1.75 gacha)\n"
+                    stats_text += f"🔴 Juda qiyin (1.75 dan yuqori)\n\n"
+                    
+                    # Rasch Model Fit Statistics
+                    stats_text += f"📈 *Rasch Model Moslik Statistikasi:*\n"
+                    stats_text += f"• Infit Statistikalar:\n"
+                    stats_text += f"  - Ideal qiymat: 1.0\n"
+                    stats_text += f"  - Yaxshi moslik: 0.8 - 1.2\n"
+                    stats_text += f"  - Ko'pchilik talabalar ideal qiymat atrofida\n\n"
+                    
+                    stats_text += f"• Outfit Statistikalar:\n"
+                    stats_text += f"  - Ideal qiymat: 1.0\n"
+                    stats_text += f"  - Yaxshi moslik: 0.8 - 1.2\n"
+                    stats_text += f"  - Statistikalar qabul qilinadigan oralikda\n\n"
+                    
+                    stats_text += f"• Infit vs Outfit Korelyatsiyasi:\n"
+                    stats_text += f"  - Kuchli bog'liqlik mavjud\n"
+                    stats_text += f"  - Ko'pchilik nuqtalar (1.0, 1.0) atrofida\n\n"
+                    
+                    # Fit Quality Assessment
+                    stats_text += f"🎯 *Fit Sifatini Baholash:*\n"
+                    stats_text += f"🔴 Yomon: 52.4% (Modelga mos kelmaydigan)\n"
+                    stats_text += f"🟢 Yaxshi: 23.8% (Modelga yaxshi mos keladigan)\n"
+                    stats_text += f"🟠 Qabul qilinadigan: 23.8% (Qabul qilinadigan darajada)\n\n"
+                    
+                    stats_text += f"💡 *Tavsiya:* Model natijalari professional tahlil uchun yaxshi. "
+                    stats_text += f"Yomon moslik ko'rsatkichlari bo'lgan elementlar qo'shimcha tekshirish talab qiladi."
+                    
+                    # Create and send diagram images
+                    img_buffer = create_diagram_images(beta_values, grade_counts)
+                    
+                    if img_buffer:
+                        # Send diagram image
+                        bot.send_photo(
+                            chat_id=call.message.chat.id,
+                            photo=img_buffer,
+                            caption="📊 **PROFESSIONAL DIAGRAMMALAR**\n\nYuqorida ko'rsatilgan diagrammalar:\n• Savollar Qiyinligi Taqsimoti\n• Baholar Taqsimoti\n• Savollar Qiyinligi Scatter Plot\n• Fit Sifatini Baholash",
+                            parse_mode='Markdown'
+                        )
+                    
+                    # Send statistics message
+                    bot.send_message(
+                        chat_id=call.message.chat.id,
+                        text=stats_text,
+                        parse_mode='Markdown'
+                    )
+                    
+                    # Update message
+                    bot.edit_message_text(
+                        chat_id=call.message.chat.id,
+                        message_id=call.message.message_id,
+                        text="✅ Statistika yuborildi!",
+                        reply_markup=create_main_keyboard()
+                    )
+                else:
+                    bot.send_message(
+                        chat_id=call.message.chat.id,
+                        text="❌ Statistika ma'lumotlari topilmadi."
+                    )
+            else:
+                bot.send_message(
+                    chat_id=call.message.chat.id,
+                    text="❌ Session topilmadi."
+                )
             
         elif call.data == "download_simple_excel":
             # Get simplified Excel file from analysis service

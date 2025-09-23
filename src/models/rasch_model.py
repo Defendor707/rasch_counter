@@ -212,7 +212,7 @@ def _estimate_beta_given_theta_parallel(data, theta):
             if hessian > 1e-10:
                 update = gradient / hessian
                 beta_j += update
-                beta_j = np.clip(beta_j, -5, 5)
+                beta_j = np.clip(beta_j, -3, 3)
                 if abs(update) < 1e-8:
                     break
         
@@ -311,7 +311,7 @@ def _estimate_beta_given_theta(data, theta):
             if hessian > 1e-10:  # Raqamli barqarorlik
                 update = gradient / hessian
                 beta_j += update
-                beta_j = np.clip(beta_j, -5, 5)  # Chegaralash
+                beta_j = np.clip(beta_j, -3, 3)  # Chegaralash
                 
                 # Konvergensiya tekshiruvi
                 if abs(update) < 1e-8:

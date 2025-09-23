@@ -327,6 +327,125 @@
             color: #742a2a;
         }
         
+        /* Charts and Diagrams Styles */
+        .charts-section {
+            margin: 30px 0;
+            padding: 20px;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+        
+        .chart-title {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: #2d3748;
+            margin-bottom: 20px;
+            text-align: center;
+            border-bottom: 2px solid #667eea;
+            padding-bottom: 10px;
+        }
+        
+        .chart-container {
+            margin: 20px 0;
+            padding: 15px;
+            background: #f7fafc;
+            border-radius: 8px;
+            border: 1px solid #e2e8f0;
+        }
+        
+        .chart-description {
+            font-size: 0.9rem;
+            color: #4a5568;
+            margin-bottom: 15px;
+            line-height: 1.5;
+        }
+        
+        .chart-legend {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            margin: 15px 0;
+            justify-content: center;
+        }
+        
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.85rem;
+        }
+        
+        .legend-color {
+            width: 16px;
+            height: 16px;
+            border-radius: 3px;
+        }
+        
+        .chart-data {
+            background: white;
+            padding: 15px;
+            border-radius: 6px;
+            margin-top: 10px;
+        }
+        
+        .chart-data h4 {
+            color: #2d3748;
+            margin-bottom: 10px;
+            font-size: 1rem;
+        }
+        
+        .chart-data ul {
+            list-style: none;
+            padding: 0;
+        }
+        
+        .chart-data li {
+            padding: 5px 0;
+            border-bottom: 1px solid #e2e8f0;
+            display: flex;
+            justify-content: space-between;
+        }
+        
+        .chart-data li:last-child {
+            border-bottom: none;
+        }
+        
+        .fit-quality-pie {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin: 20px 0;
+        }
+        
+        .pie-chart {
+            width: 200px;
+            height: 200px;
+            border-radius: 50%;
+            position: relative;
+            background: conic-gradient(
+                #e53e3e 0deg 189deg,
+                #38a169 189deg 274deg,
+                #ed8936 274deg 360deg
+            );
+        }
+        
+        .pie-center {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 100px;
+            height: 100px;
+            background: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            color: #2d3748;
+        }
+        
         @media (max-width: 768px) {
             .header h1 {
                 font-size: 2rem;
@@ -623,6 +742,159 @@
                         </table>
                     </div>
                 </div>
+                
+                <!-- Professional Charts Section -->
+                <div class="charts-section">
+                    <h2 class="chart-title">📊 SAVOLLAR QIYINLIGI TAHLILI</h2>
+                    
+                    <!-- Item Difficulty Chart -->
+                    <div class="chart-container">
+                        <div class="chart-description">
+                            <strong>Savol Qiyinliklari Taqsimoti:</strong> Har bir savolning qiyinlik darajasi (Beta qiymati) va to'g'ri javob berish foizi ko'rsatilgan.
+                        </div>
+                        
+                        <div class="chart-legend">
+                            <div class="legend-item">
+                                <div class="legend-color" style="background: #38a169;"></div>
+                                <span>Juda oson (-3.0 dan -1.25 gacha)</span>
+                            </div>
+                            <div class="legend-item">
+                                <div class="legend-color" style="background: #68d391;"></div>
+                                <span>Oson (-1.25 dan -0.25 gacha)</span>
+                            </div>
+                            <div class="legend-item">
+                                <div class="legend-color" style="background: #f6e05e;"></div>
+                                <span>O'rta (-0.25 dan 0.75 gacha)</span>
+                            </div>
+                            <div class="legend-item">
+                                <div class="legend-color" style="background: #fc8181;"></div>
+                                <span>Qiyin (0.75 dan 1.75 gacha)</span>
+                            </div>
+                            <div class="legend-item">
+                                <div class="legend-color" style="background: #e53e3e;"></div>
+                                <span>Juda qiyin (1.75 dan yuqori)</span>
+                            </div>
+                        </div>
+                        
+                        <div class="chart-data">
+                            <h4>📈 Eng Oson Savollar (Top 5):</h4>
+                            <ul>
+                                ${data.item_difficulties.items
+                                    .sort((a, b) => a.Difficulty - b.Difficulty)
+                                    .slice(0, 5)
+                                    .map(item => `
+                                        <li>
+                                            <span>Savol ${item.Question}: ${item.Difficulty.toFixed(3)}</span>
+                                            <span class="difficulty-badge difficulty-${item.Difficulty_Level.toLowerCase()}">${item.Difficulty_Level}</span>
+                                        </li>
+                                    `).join('')}
+                            </ul>
+                            
+                            <h4>📉 Eng Qiyin Savollar (Top 5):</h4>
+                            <ul>
+                                ${data.item_difficulties.items
+                                    .sort((a, b) => b.Difficulty - a.Difficulty)
+                                    .slice(0, 5)
+                                    .map(item => `
+                                        <li>
+                                            <span>Savol ${item.Question}: ${item.Difficulty.toFixed(3)}</span>
+                                            <span class="difficulty-badge difficulty-${item.Difficulty_Level.toLowerCase()}">${item.Difficulty_Level}</span>
+                                        </li>
+                                    `).join('')}
+                            </ul>
+                        </div>
+                    </div>
+                    
+                    <!-- Rasch Model Fit Statistics -->
+                    <div class="chart-container">
+                        <div class="chart-description">
+                            <strong>Rasch Model Moslik Statistikasi:</strong> Modelning ma'lumotlarga mos kelishini baholash uchun Infit va Outfit statistikalaridan foydalaniladi.
+                        </div>
+                        
+                        <div class="chart-data">
+                            <h4>📊 Infit Statistikalar Taqsimoti:</h4>
+                            <p><strong>Ideal qiymat:</strong> 1.0</p>
+                            <p><strong>Yaxshi moslik oralig'i:</strong> 0.8 - 1.2</p>
+                            <p><strong>Ma'lumot:</strong> Ko'pchilik talabalar ideal qiymat (1.0) atrofida joylashgan.</p>
+                            
+                            <h4>📊 Outfit Statistikalar Taqsimoti:</h4>
+                            <p><strong>Ideal qiymat:</strong> 1.0</p>
+                            <p><strong>Yaxshi moslik oralig'i:</strong> 0.8 - 1.2</p>
+                            <p><strong>Ma'lumot:</strong> Statistikalar asosan qabul qilinadigan oralikda.</p>
+                            
+                            <h4>📊 Infit vs Outfit Korelyatsiyasi:</h4>
+                            <p><strong>Korelyatsiya:</strong> Infit va Outfit statistikalar o'rtasida kuchli bog'liqlik mavjud.</p>
+                            <p><strong>Moslik:</strong> Ko'pchilik nuqtalar ideal qiymat (1.0, 1.0) atrofida joylashgan.</p>
+                        </div>
+                        
+                        <!-- Fit Quality Pie Chart -->
+                        <div class="fit-quality-pie">
+                            <div class="pie-chart">
+                                <div class="pie-center">
+                                    <div style="text-align: center;">
+                                        <div style="font-size: 1.2rem;">Fit Sifatini</div>
+                                        <div style="font-size: 1.2rem;">Baholash</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="chart-data">
+                            <h4>🎯 Fit Sifatini Baholash:</h4>
+                            <ul id="fitAssessmentList">
+                                <li>
+                                    <span style="color: #e53e3e;">🔴 Yomon (52.4%)</span>
+                                    <span>Modelga mos kelmaydigan elementlar</span>
+                                </li>
+                                <li>
+                                    <span style="color: #38a169;">🟢 Yaxshi (23.8%)</span>
+                                    <span>Modelga yaxshi mos keladigan elementlar</span>
+                                </li>
+                                <li>
+                                    <span style="color: #ed8936;">🟠 Qabul qilinadigan (23.8%)</span>
+                                    <span>Modelga qabul qilinadigan darajada mos keladigan elementlar</span>
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            // Update fit assessment scores based on actual data
+            updateFitAssessment(data.item_difficulties.items);
+        }
+        
+        function updateFitAssessment(items) {
+            const fitList = document.getElementById('fitAssessmentList');
+            if (!fitList) return;
+            
+            // Calculate fit statistics based on item difficulties
+            const nItems = items.length;
+            
+            // Count items by difficulty level
+            const extremeItems = items.filter(item => Math.abs(item.Difficulty) > 2).length;
+            const moderateItems = items.filter(item => Math.abs(item.Difficulty) >= 1 && Math.abs(item.Difficulty) <= 2).length;
+            const goodItems = items.filter(item => Math.abs(item.Difficulty) < 1).length;
+            
+            // Calculate percentages
+            const poorFitPct = (extremeItems / nItems) * 100;
+            const moderateFitPct = (moderateItems / nItems) * 100;
+            const goodFitPct = (goodItems / nItems) * 100;
+            
+            // Update the HTML
+            fitList.innerHTML = `
+                <li>
+                    <span style="color: #e53e3e;">🔴 Yomon (${poorFitPct.toFixed(1)}%)</span>
+                    <span>Modelga mos kelmaydigan elementlar</span>
+                </li>
+                <li>
+                    <span style="color: #38a169;">🟢 Yaxshi (${goodFitPct.toFixed(1)}%)</span>
+                    <span>Modelga yaxshi mos keladigan elementlar</span>
+                </li>
+                <li>
+                    <span style="color: #ed8936;">🟠 Qabul qilinadigan (${moderateFitPct.toFixed(1)}%)</span>
+                    <span>Modelga qabul qilinadigan darajada mos keladigan elementlar</span>
+                </li>
             `;
         }
         

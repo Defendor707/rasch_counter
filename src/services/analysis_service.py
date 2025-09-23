@@ -77,6 +77,11 @@ class RaschAnalysisService:
                 df, internal_progress_callback
             )
             
+            # Fix item difficulties format for all files
+            if isinstance(item_difficulties, np.ndarray):
+                # Convert to list without clipping to preserve variation
+                item_difficulties = item_difficulties.tolist()
+            
             # Natijalarni saqlash
             results = {
                 'results_df': results_df,
@@ -144,14 +149,31 @@ class RaschAnalysisService:
         # Item difficulties list yaratish
         item_difficulties_list = []
         for i, difficulty in enumerate(results['item_difficulties']):
+            # Normalize for display purposes - scale extreme values to reasonable range
+            raw_difficulty = float(difficulty)
+            
+            # If values are extremely large, normalize them
+            if abs(raw_difficulty) > 10:
+                # Scale to [-3, 3] range while preserving relative differences
+                max_val = max(abs(float(d)) for d in results['item_difficulties'])
+                display_difficulty = (raw_difficulty / max_val) * 3
+            else:
+                display_difficulty = raw_difficulty
+            
+            # Final clip to ensure reasonable range
+            display_difficulty = np.clip(display_difficulty, -3, 3)
+            
             item_difficulties_list.append({
                 'Question': f'Savol {i+1}',
-                'Difficulty': round(float(difficulty), 3),
-                'Difficulty_Level': 'Oson' if difficulty < -0.5 else 'O\'rta' if difficulty < 0.5 else 'Qiyin'
+                'Difficulty': round(display_difficulty, 3),
+                'Difficulty_Level': 'Oson' if display_difficulty < -0.5 else 'O\'rta' if display_difficulty < 0.5 else 'Qiyin'
             })
         
         # Qiyinlik bo'yicha tartiblash
         item_difficulties_list.sort(key=lambda x: x['Difficulty'])
+        
+        # Convert item_difficulties to numpy array for calculations
+        item_diffs_array = np.array(results['item_difficulties'])
         
         return {
             'summary': {
@@ -164,10 +186,10 @@ class RaschAnalysisService:
                 'std_deviation': float(results['results_df']['Standard Score'].std())
             },
             'item_difficulties': {
-                'min': float(results['item_difficulties'].min()),
-                'max': float(results['item_difficulties'].max()),
-                'mean': float(results['item_difficulties'].mean()),
-                'std': float(results['item_difficulties'].std()),
+                'min': float(item_diffs_array.min()),
+                'max': float(item_diffs_array.max()),
+                'mean': float(item_diffs_array.mean()),
+                'std': float(item_diffs_array.std()),
                 'items': item_difficulties_list
             },
             'timestamp': results['timestamp']
@@ -311,6 +333,18 @@ class RaschAnalysisService:
         # Question columns
         question_columns = [f'Savol_{i+1}' for i in range(n_questions)]
         
+        # Create realistic item difficulties (same for all students)
+        # Create diverse difficulties: some easy, some medium, some hard
+        item_difficulties = []
+        for i in range(n_questions):
+            if i < n_questions // 3:  # Easy questions
+                item_difficulties.append(np.random.normal(-1, 0.3))
+            elif i < 2 * n_questions // 3:  # Medium questions
+                item_difficulties.append(np.random.normal(0, 0.3))
+            else:  # Hard questions
+                item_difficulties.append(np.random.normal(1, 0.3))
+        item_difficulties = np.array(item_difficulties)
+        
         # Create realistic data with different ability levels
         for i in range(n_students):
             # Simulate student ability
@@ -323,10 +357,7 @@ class RaschAnalysisService:
             else:  # Below average students
                 ability = np.random.normal(-0.5, 0.5)
             
-            # Simulate item difficulties
-            item_difficulties = np.random.normal(0, 1, n_questions)
-            
-            # Calculate probabilities
+            # Calculate probabilities using the same item difficulties
             logits = ability - item_difficulties
             probabilities = 1 / (1 + np.exp(-logits))
             
