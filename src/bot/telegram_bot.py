@@ -337,7 +337,7 @@ def main():
             message.chat.id,
             f"👋 Assalomu alaykum, {user_first_name}!\n\n"
             f"🎓 *Rasch Counter Bot*ga xush kelibsiz!\n\n"
-            f"📝 Excel yuboring yoki /matrix buyrug'i bilan namuna faylni oling",
+            f"📝 Excel yuboring yoki /namuna buyrug'i bilan namuna tahlilni ko'ring",
             parse_mode='Markdown'
         )
         
@@ -375,7 +375,7 @@ def main():
                 return
             
             # Get results
-            summary_results = analysis_service.get_results(session_id, format='json')
+            summary_results = analysis_service.get_results(session_id, format='summary')
             detailed_results = analysis_service.get_results(session_id, format='json')
             
             # Store session_id for user
@@ -437,23 +437,79 @@ def main():
             )
 
     @bot.message_handler(commands=["matrix"])
+    @bot.message_handler(commands=["matrix"])
     def matrix_command(message):
-        """Send pre-made 100x55 Excel matrix."""
+        """Generate and send 50x55 Excel matrix."""
         try:
-            import os
-            matrix_path = "/opt/rasch_counter/.data/rasch_matrix_100x55.xlsx"
-            if os.path.exists(matrix_path):
-                with open(matrix_path, "rb") as f:
-                    bot.send_document(message.chat.id, f)
-            else:
-                bot.send_message(message.chat.id, "Matrix fayli topilmadi. Admin bilan bog'laning.")
+            import pandas as pd
+            import numpy as np
+            import io
+            
+            # Generate sample data
+            np.random.seed(42)
+            n_students = 50
+            n_questions = 55
+            
+            # Student IDs
+            student_ids = [f"Talaba{i+1:03d}" for i in range(n_students)]
+            
+            # Question columns
+            question_columns = [f"Savol_{i+1}" for i in range(n_questions)]
+            
+            # Create realistic item difficulties
+            item_difficulties = []
+            for i in range(n_questions):
+                if i < n_questions // 3:  # Easy questions
+                    item_difficulties.append(np.random.normal(-1, 0.3))
+                elif i < 2 * n_questions // 3:  # Medium questions
+                    item_difficulties.append(np.random.normal(0, 0.3))
+                else:  # Hard questions
+                    item_difficulties.append(np.random.normal(1, 0.3))
+            item_difficulties = np.array(item_difficulties)
+            
+            # Create realistic data with different ability levels
+            sample_data = []
+            for i in range(n_students):
+                # Simulate student ability
+                if i < 5:  # Top students
+                    ability = np.random.normal(1.5, 0.5)
+                elif i < 15:  # Good students
+                    ability = np.random.normal(0.5, 0.5)
+                elif i < 35:  # Average students
+                    ability = np.random.normal(0, 0.5)
+                else:  # Below average students
+                    ability = np.random.normal(-0.5, 0.5)
+                
+                # Calculate probabilities using item difficulties
+                logits = ability - item_difficulties
+                probabilities = 1 / (1 + np.exp(-logits))
+                
+                # Generate responses
+                responses = np.random.binomial(1, probabilities)
+                
+                # Create row data
+                row = [student_ids[i]] + responses.tolist()
+                sample_data.append(row)
+            
+            # Create DataFrame
+            columns = ["Talaba_ID"] + question_columns
+            df = pd.DataFrame(sample_data, columns=columns)
+            
+            # Create Excel file in memory
+            excel_buffer = io.BytesIO()
+            df.to_excel(excel_buffer, index=False, engine="openpyxl")
+            excel_buffer.seek(0)
+            
+            # Send the file
+            bot.send_document(
+                message.chat.id,
+                excel_buffer,
+                visible_file_name=f"namuna_matrix_{n_students}x{n_questions}.xlsx",
+                caption=f"📊 Namuna Excel fayli\n👥 {n_students} talaba\n📝 {n_questions} savol\n\n💡 Bu faylni yuborib tahlil qilishingiz mumkin!"
+            )
+            
         except Exception as e:
-            bot.send_message(message.chat.id, f"Matrix yuborishda xatolik: {str(e)}")
-            return
-            bot.send_message(message.chat.id, f"Matrix generatsiyada xatolik: {str(e)}")
-            return
-
-    @bot.message_handler(commands=['help'])
+            bot.send_message(message.chat.id, f"Matrix yaratishda xatolik: {str(e)}")
     def help_command(message):
         # Basic help message for all users
         help_text = HELP_MESSAGE
@@ -893,7 +949,7 @@ def main():
             
             # Get results from service
             detailed_results = analysis_service.get_results(session_id, format='json')
-            summary_results = analysis_service.get_results(session_id, format='json')
+            summary_results = analysis_service.get_results(session_id, format='summary')
             
             results_df = detailed_results['results_df']
             ability_estimates = detailed_results['ability_estimates']
@@ -1228,7 +1284,7 @@ def main():
             
             if session_id:
                 # Get comprehensive statistics from analysis service
-                summary_results = analysis_service.get_results(session_id, format='json')
+                summary_results = analysis_service.get_results(session_id, format='summary')
                 detailed_results = analysis_service.get_results(session_id, format='json')
                 
                 if summary_results and detailed_results:

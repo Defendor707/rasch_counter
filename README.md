@@ -164,7 +164,7 @@ The bot uses UZBMB (Uzbekistan Agency for Assessment of Knowledge and Skills) gr
 - `/start` - Start the bot and get welcome message
 - `/help` - Get help and usage instructions
 - `/ball` - Calculate average scores from two Excel files
-- `/matrix` - Get a sample Excel template
+- `/namuna - Get sample analysis results
 - `/cancel` - Cancel current operation
 - `/adminos` - Admin panel (admin only)
 

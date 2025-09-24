@@ -348,7 +348,7 @@ TELEGRAM_GUIDE_HTML = """
                         <span class="command">/help</span> - Yordam va qo'llanma olish
                     </div>
                     <div class="command-item">
-                        <span class="command">/matrix</span> - Namuna Excel fayl olish (100 talaba x 55 savol)
+                        <span class="command">/namuna - Namuna tahlil ko'rish (100 talaba x 55 savol)
                     </div>
                     <div class="command-item">
                         <span class="command">/ball</span> - Ikki Excel fayldan o'rtacha ball hisoblash
@@ -468,7 +468,7 @@ TELEGRAM_GUIDE_HTML = """
                 <p>Agar bot bilan bog'liq muammolar yuzaga kelsa yoki qo'shimcha yordam kerak bo'lsa:</p>
                 <ul>
                     <li>Botda /help buyrug'ini yuboring</li>
-                    <li>Namuna fayl olish uchun /matrix buyrug'ini ishlating</li>
+                    <li>Namuna fayl olish uchun /namuna buyrug'ini ishlating</li>
                     <li>Web ilovadan foydalanish uchun <a href="/">asosiy sahifaga</a> o'ting</li>
                 </ul>
             </div>

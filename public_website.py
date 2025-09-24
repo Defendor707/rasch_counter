@@ -333,7 +333,7 @@ HTML_TEMPLATE = """
                         <span class="command">/help</span> - Yordam va qo'llanma olish
                     </div>
                     <div class="command-item">
-                        <span class="command">/matrix</span> - Namuna Excel fayl olish (100 talaba x 55 savol)
+                        <span class="command">/namuna - Namuna tahlil ko'rish (100 talaba x 55 savol)
                     </div>
                     <div class="command-item">
                         <span class="command">/ball</span> - Ikki Excel fayldan o'rtacha ball hisoblash
