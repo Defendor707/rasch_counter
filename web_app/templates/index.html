@@ -42,6 +42,32 @@
             opacity: 0.9;
         }
         
+        .header-links {
+            margin-top: 20px;
+        }
+        
+        .telegram-guide-link {
+            display: inline-block;
+            background: #0088cc;
+            color: white;
+            padding: 12px 24px;
+            text-decoration: none;
+            border-radius: 8px;
+            font-weight: bold;
+            transition: background 0.3s;
+            box-shadow: 0 4px 15px rgba(0, 136, 204, 0.3);
+        }
+        
+        .telegram-guide-link:hover {
+            background: #006699;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0, 136, 204, 0.4);
+        }
+        
+        .telegram-guide-link i {
+            margin-right: 8px;
+        }
+        
         .main-content {
             background: white;
             border-radius: 15px;
@@ -470,6 +496,11 @@
         <div class="header">
             <h1><i class="fas fa-chart-line"></i> Rasch Counter</h1>
             <p>Professional test analysis using Rasch model</p>
+            <div class="header-links">
+                <a href="/telegram-guide" class="telegram-guide-link">
+                    <i class="fab fa-telegram"></i> Telegram Bot Qo'llanmasi
+                </a>
+            </div>
         </div>
         
         <div class="main-content">
@@ -691,10 +722,10 @@
                 
                 <div class="result-card">
                     <h3><i class="fas fa-chart-line"></i> Savol Qiyinliklari</h3>
-                    <p><strong>Eng oson savol:</strong> ${(data.item_difficulties.min || 0).toFixed(3)}</p>
-                    <p><strong>Eng qiyin savol:</strong> ${(data.item_difficulties.max || 0).toFixed(3)}</p>
-                    <p><strong>O'rtacha qiyinlik:</strong> ${(data.item_difficulties.mean || 0).toFixed(3)}</p>
-                    <p><strong>Standart og'ish:</strong> ${(data.item_difficulties.std || 0).toFixed(3)}</p>
+                    <p><strong>Eng oson savol:</strong> ${Math.min(...(data.item_difficulties || [0])).toFixed(3)}</p>
+                    <p><strong>Eng qiyin savol:</strong> ${Math.max(...(data.item_difficulties || [0])).toFixed(3)}</p>
+                    <p><strong>O'rtacha qiyinlik:</strong> ${((data.item_difficulties || []).reduce((a, b) => a + b, 0) / (data.item_difficulties || []).length || 0).toFixed(3)}</p>
+                    <p><strong>Standart og'ish:</strong> ${((data.item_difficulties || []).length > 0 ? Math.sqrt((data.item_difficulties || []).reduce((sq, n) => sq + Math.pow(n - ((data.item_difficulties || []).reduce((a, b) => a + b, 0) / (data.item_difficulties || []).length), 2), 0) / (data.item_difficulties || []).length) : 0).toFixed(3)}</p>
                 </div>
                 
                 <div class="result-card">
@@ -709,13 +740,22 @@
                                 </tr>
                             </thead>
                             <tbody>
-                                ${(data.item_difficulties.items || []).map(item => `
-                                    <tr>
-                                        <td>${item.Question}</td>
-                                        <td>${item.Difficulty}</td>
-                                        <td><span class="difficulty-badge difficulty-${item.Difficulty_Level.toLowerCase()}">${item.Difficulty_Level}</span></td>
-                                    </tr>
-                                `).join('')}
+                                ${(data.item_difficulties || []).map((difficulty, index) => {
+                                    let level = 'Oson';
+                                    if (difficulty > 1.75) level = 'Juda qiyin';
+                                    else if (difficulty > 0.75) level = 'Qiyin';
+                                    else if (difficulty > -0.25) level = 'O\'rta';
+                                    else if (difficulty > -1.25) level = 'Oson';
+                                    else level = 'Juda oson';
+                                    
+                                    return `
+                                        <tr>
+                                            <td>Savol ${index + 1}</td>
+                                            <td>${difficulty.toFixed(3)}</td>
+                                            <td><span class="difficulty-badge difficulty-${level.toLowerCase().replace(' ', '')}">${level}</span></td>
+                                        </tr>
+                                    `;
+                                }).join('')}
                             </tbody>
                         </table>
                     </div>
@@ -757,28 +797,48 @@
                         <div class="chart-data">
                             <h4>📈 Eng Oson Savollar (Top 5):</h4>
                             <ul>
-                                ${(data.item_difficulties.items || [])
-                                    .sort((a, b) => a.Difficulty - b.Difficulty)
+                                ${(data.item_difficulties || [])
+                                    .map((difficulty, index) => ({ difficulty, index }))
+                                    .sort((a, b) => a.difficulty - b.difficulty)
                                     .slice(0, 5)
-                                    .map(item => `
-                                        <li>
-                                            <span>Savol ${item.Question}: ${(item.Difficulty || 0).toFixed(3)}</span>
-                                            <span class="difficulty-badge difficulty-${item.Difficulty_Level.toLowerCase()}">${item.Difficulty_Level}</span>
-                                        </li>
-                                    `).join('')}
+                                    .map(item => {
+                                        let level = 'Oson';
+                                        if (item.difficulty > 1.75) level = 'Juda qiyin';
+                                        else if (item.difficulty > 0.75) level = 'Qiyin';
+                                        else if (item.difficulty > -0.25) level = 'O\'rta';
+                                        else if (item.difficulty > -1.25) level = 'Oson';
+                                        else level = 'Juda oson';
+                                        
+                                        return `
+                                            <li>
+                                                <span>Savol ${item.index + 1}: ${item.difficulty.toFixed(3)}</span>
+                                                <span class="difficulty-badge difficulty-${level.toLowerCase().replace(' ', '')}">${level}</span>
+                                            </li>
+                                        `;
+                                    }).join('')}
                             </ul>
                             
                             <h4>📉 Eng Qiyin Savollar (Top 5):</h4>
                             <ul>
-                                ${(data.item_difficulties.items || [])
-                                    .sort((a, b) => b.Difficulty - a.Difficulty)
+                                ${(data.item_difficulties || [])
+                                    .map((difficulty, index) => ({ difficulty, index }))
+                                    .sort((a, b) => b.difficulty - a.difficulty)
                                     .slice(0, 5)
-                                    .map(item => `
-                                        <li>
-                                            <span>Savol ${item.Question}: ${(item.Difficulty || 0).toFixed(3)}</span>
-                                            <span class="difficulty-badge difficulty-${item.Difficulty_Level.toLowerCase()}">${item.Difficulty_Level}</span>
-                                        </li>
-                                    `).join('')}
+                                    .map(item => {
+                                        let level = 'Oson';
+                                        if (item.difficulty > 1.75) level = 'Juda qiyin';
+                                        else if (item.difficulty > 0.75) level = 'Qiyin';
+                                        else if (item.difficulty > -0.25) level = 'O\'rta';
+                                        else if (item.difficulty > -1.25) level = 'Oson';
+                                        else level = 'Juda oson';
+                                        
+                                        return `
+                                            <li>
+                                                <span>Savol ${item.index + 1}: ${item.difficulty.toFixed(3)}</span>
+                                                <span class="difficulty-badge difficulty-${level.toLowerCase().replace(' ', '')}">${level}</span>
+                                            </li>
+                                        `;
+                                    }).join('')}
                             </ul>
                         </div>
                     </div>
@@ -839,20 +899,20 @@
             `;
             
             // Update fit assessment scores based on actual data
-            updateFitAssessment(data.item_difficulties.items);
+            updateFitAssessment(data.item_difficulties || []);
         }
         
         function updateFitAssessment(items) {
             const fitList = document.getElementById('fitAssessmentList');
-            if (!fitList) return;
+            if (!fitList || !items || !Array.isArray(items)) return;
             
             // Calculate fit statistics based on item difficulties
             const nItems = items.length;
             
             // Count items by difficulty level
-            const extremeItems = items.filter(item => Math.abs(item.Difficulty) > 2).length;
-            const moderateItems = items.filter(item => Math.abs(item.Difficulty) >= 1 && Math.abs(item.Difficulty) <= 2).length;
-            const goodItems = items.filter(item => Math.abs(item.Difficulty) < 1).length;
+            const extremeItems = items.filter(difficulty => Math.abs(difficulty) > 2).length;
+            const moderateItems = items.filter(difficulty => Math.abs(difficulty) >= 1 && Math.abs(difficulty) <= 2).length;
+            const goodItems = items.filter(difficulty => Math.abs(difficulty) < 1).length;
             
             // Calculate percentages
             const poorFitPct = (extremeItems / nItems) * 100;
