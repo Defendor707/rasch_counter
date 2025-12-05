@@ -1,0 +1,46 @@
+﻿version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: edurasch-postgres
+    environment:
+      POSTGRES_USER: ${DB_USER:-edurasch}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-edurasch123}
+      POSTGRES_DB: ${DB_NAME:-edurasch}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - edurasch-network
+
+  mongodb:
+    image: mongo:7
+    container_name: edurasch-mongodb
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_USER:-edurasch}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_PASSWORD:-edurasch123}
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+    networks:
+      - edurasch-network
+
+  redis:
+    image: redis:7-alpine
+    container_name: edurasch-redis
+    ports:
+      - "6379:6379"
+    networks:
+      - edurasch-network
+
+networks:
+  edurasch-network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  mongo_data:
+  redis_data:

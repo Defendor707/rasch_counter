@@ -1,0 +1,22 @@
+﻿# Dependencies
+node_modules/
+.env
+.env.local
+
+# Build
+dist/
+build/
+*.exe
+*.apk
+
+# Logs
+*.log
+logs/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
