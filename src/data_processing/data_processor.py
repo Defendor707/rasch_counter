@@ -5,7 +5,7 @@ import os
 import re
 from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor
 from multiprocessing import cpu_count
-from models.rasch_model import rasch_model, ability_to_grade, ability_to_standard_score
+from models.rasch_model import rasch_model, ability_to_grade, ability_to_standard_score, ability_to_score, score_to_grade
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import A4, landscape
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
@@ -438,75 +438,41 @@ def process_exam_data(df, progress_callback=None):
     if progress_callback:
         progress_callback(50, "Baholar hisoblanmoqda...")
     
-    # Parallel baholash mexanizmi (BBM standartlariga muvofiq)
-    def fast_parallel_grade(abilities):
-        if len(abilities) == 0:
-            return np.array([])
-        
-        # Parallel processing uchun chunk_grade funksiyasi
-        def chunk_grade(ability_chunk):
-            scores = np.array([ability_to_standard_score(a) for a in ability_chunk], dtype=np.float32)
-            scores = np.round(scores, 1)
-            grades = np.full(len(scores), 'NC', dtype='<U3')
-            
-            # Vectorized grading
-            grades[:] = 'NC'
-            # explicit, non-overlapping ranges
-            grades[(scores >= 46) & (scores < 50)] = 'C'
-            grades[(scores >= 50) & (scores < 55)] = 'C+'
-            grades[(scores >= 55) & (scores < 60)] = 'B'
-            grades[(scores >= 60) & (scores < 65)] = 'B+'
-            grades[(scores >= 65) & (scores <= 70)] = 'A'
-            grades[scores > 70] = 'A+'
-            return grades
-        
-        # Parallel processing agar talabalar ko'p bo'lsa
-        if len(abilities) > 5000:
-            chunk_size = max(len(abilities) // MAX_WORKERS, 1000)
-            chunks = [abilities[i:i+chunk_size] for i in range(0, len(abilities), chunk_size)]
-            
-            try:
-                with ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
-                    results = list(executor.map(chunk_grade, chunks))
-                return np.concatenate(results)
-            except Exception:
-                # Fallback to sequential
-                return chunk_grade(abilities)
-        else:
-            return chunk_grade(abilities)
+    # Ilovadagi kabi weighted scoring ishlatish (qiyinlikka qarab ball)
+    # Bu ilova va bot natijalarini bir xil qiladi
+    difficulties_list = item_difficulties.tolist() if isinstance(item_difficulties, np.ndarray) else item_difficulties
     
-    # T-score: dataset ichida standartlashtirish (Z -> T)
-    # Bu 10–90 oralig'ida siqilib qolishni kamaytiradi va guruhga nisbatan pozitsiyani beradi
-    theta_mean = float(np.mean(ability_estimates)) if len(ability_estimates) > 0 else 0.0
-    theta_std = float(np.std(ability_estimates, ddof=1)) if len(ability_estimates) > 1 else 0.0
-    if theta_std <= 0 or not np.isfinite(theta_std):
-        theta_std = 1e-6
-    z_scores = (ability_estimates - theta_mean) / theta_std
-    t_scores = 50.0 + 10.0 * z_scores
-    # So'rovga muvofiq: Standard Score 10–90.1 diapazonda
-    t_scores = np.clip(t_scores, 10, 90.1)
+    # Har bir talaba uchun weighted ball hisoblash
+    standard_scores = []
+    grades = []
     
-    # UZBMB standartlariga muvofiq baholash
-    grades = np.full(len(t_scores), 'NC', dtype='<U3')
-    grades[(t_scores >= 46) & (t_scores < 50)] = 'C'
-    grades[(t_scores >= 50) & (t_scores < 55)] = 'C+'
-    grades[(t_scores >= 55) & (t_scores < 60)] = 'B'
-    grades[(t_scores >= 60) & (t_scores < 65)] = 'B+'
-    grades[(t_scores >= 65) & (t_scores < 70)] = 'A'
-    grades[(t_scores >= 70)] = 'A+'
-    standard_scores = t_scores
+    for i in range(n_students):
+        theta = float(ability_estimates[i])
+        responses = response_data[i].tolist() if isinstance(response_data, np.ndarray) else response_data[i]
+        
+        # Ilovadagi kabi ability_to_score funksiyasidan foydalanish
+        score = ability_to_score(theta, difficulties_list, responses, max_score=100)
+        standard_scores.append(score)
+        
+        # Bahoga o'tkazish
+        grade = score_to_grade(score)
+        grades.append(grade)
+    
+    # Numpy array ga o'tkazish
+    standard_scores = np.array(standard_scores, dtype=np.float32)
+    grades = np.array(grades, dtype='<U3')
     
     if progress_callback:
         progress_callback(75, "Natijalar tizimlashtirilmoqda...")
     
     # Natijalar jadvali yaratish
-    # ABILITY: z-score (theta ni dataset bo'yicha standartlashtirilgan ko'rinishi), 2 xonali kasrga yaxlitlangan
-    ability_z = np.round((ability_estimates - theta_mean) / (theta_std if theta_std > 0 else 1e-6), 2)
+    # ABILITY: theta (qobiliyat) - 3 xonali kasrga yaxlitlangan (ilovadagi kabi)
+    ability_rounded = np.round(ability_estimates, 3).astype(np.float32)
     results_df = pd.DataFrame({
         'Student ID': student_ids,
         'Raw Score': raw_scores,
-        'Ability': ability_z.astype(np.float32),
-        'Standard Score': np.round(standard_scores, 2).astype(np.float32),
+        'Ability': ability_rounded,
+        'Standard Score': np.round(standard_scores, 1).astype(np.float32),
         'Grade': grades
     })
     
