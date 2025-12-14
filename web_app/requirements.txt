@@ -1,0 +1,13 @@
+# Web App Dependencies
+flask==3.0.0
+werkzeug==3.0.1
+
+# Core dependencies (from main project)
+pandas==2.3.2
+numpy==2.2.6
+scipy==1.15.3
+openpyxl==3.1.5
+reportlab==4.4.3
+
+# Optional: For better performance
+gunicorn==21.2.0

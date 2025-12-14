@@ -1,0 +1,20 @@
+[Unit]
+Description=Rasch Counter Telegram Bot
+After=network.target
+
+[Service]
+Type=simple
+User=ubuntu
+WorkingDirectory=/home/ubuntu/xizmatlar/rasch_counter
+Environment="PATH=/usr/bin:/usr/local/bin:/home/ubuntu/.local/bin"
+Environment="TELEGRAM_TOKEN=7706419346:AAHFnCJCevlIXr-TEUywPMDWHnD0XUuCAOE"
+Environment="ADMIN_USER_ID=7537966029"
+ExecStart=/usr/bin/python3 /home/ubuntu/xizmatlar/rasch_counter/bot.py
+Restart=always
+RestartSec=10
+StandardOutput=append:/home/ubuntu/xizmatlar/rasch_counter/logs/bot.log
+StandardError=append:/home/ubuntu/xizmatlar/rasch_counter/logs/bot.log
+
+[Install]
+WantedBy=multi-user.target
+
